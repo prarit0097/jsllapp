@@ -2,12 +2,23 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Avg, Count
+from django.db.models import Avg
 from django.shortcuts import render
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.api.serializers import (
+    AnnouncementSerializer,
+    EventsSummarySerializer,
+    HealthResponseSerializer,
+    LatestQuoteSerializer,
+    MetaResponseSerializer,
+    NewsItemSerializer,
+    OhlcCandleSerializer,
+    PipelineStatusSerializer,
+)
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
 from apps.market.market_time import (
     compute_thresholds,
@@ -147,16 +158,25 @@ def dashboard(request):
 
 
 class HealthView(APIView):
+    serializer_class = HealthResponseSerializer
+
+    @extend_schema(responses=HealthResponseSerializer)
     def get(self, request):
         return Response({'status': 'ok'})
 
 
 class MetaView(APIView):
+    serializer_class = MetaResponseSerializer
+
+    @extend_schema(responses=MetaResponseSerializer)
     def get(self, request):
         return Response({'app': 'JSLL Decision Intelligence', 'version': '0.1.0'})
 
 
 class Ohlc1mView(APIView):
+    serializer_class = OhlcCandleSerializer
+
+    @extend_schema(responses=OhlcCandleSerializer(many=True))
     def get(self, request):
         limit = int(request.query_params.get('limit', 100))
         limit = max(1, min(limit, 1000))
@@ -177,6 +197,9 @@ class Ohlc1mView(APIView):
 
 
 class LatestQuoteView(APIView):
+    serializer_class = LatestQuoteSerializer
+
+    @extend_schema(responses=LatestQuoteSerializer)
     def get(self, request):
         latest = Ohlc1m.objects.order_by('-ts').first()
         now_server, seconds_since = _freshness(latest)
@@ -208,6 +231,9 @@ class LatestQuoteView(APIView):
 
 
 class PipelineStatusView(APIView):
+    serializer_class = PipelineStatusSerializer
+
+    @extend_schema(responses=PipelineStatusSerializer)
     def get(self, request):
         last_run = IngestRun.objects.first()
         latest = Ohlc1m.objects.order_by('-ts').first()
@@ -238,6 +264,9 @@ class PipelineStatusView(APIView):
 
 
 class NewsView(APIView):
+    serializer_class = NewsItemSerializer
+
+    @extend_schema(responses=NewsItemSerializer(many=True))
     def get(self, request):
         limit = int(request.query_params.get('limit', 50))
         limit = max(1, min(limit, 200))
@@ -259,6 +288,9 @@ class NewsView(APIView):
 
 
 class AnnouncementsView(APIView):
+    serializer_class = AnnouncementSerializer
+
+    @extend_schema(responses=AnnouncementSerializer(many=True))
     def get(self, request):
         limit = int(request.query_params.get('limit', 50))
         limit = max(1, min(limit, 200))
@@ -279,6 +311,9 @@ class AnnouncementsView(APIView):
 
 
 class EventsSummaryView(APIView):
+    serializer_class = EventsSummarySerializer
+
+    @extend_schema(responses=EventsSummarySerializer)
     def get(self, request):
         news_24h_since = timezone.now() - timedelta(hours=24)
         news_last_24h = NewsItem.objects.filter(published_at__gte=news_24h_since)
