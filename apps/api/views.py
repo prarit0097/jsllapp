@@ -323,7 +323,7 @@ class EventsSummaryView(APIView):
         announcements_7d_since = timezone.now() - timedelta(days=7)
         announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
         announcements_count = announcements_last_7d.count()
-        latest_announcement = announcements_last_7d.order_by('-published_at').first()
+        latest_announcement = Announcement.objects.order_by('-published_at').first()
         last_fetch_run = EventsFetchRun.objects.first()
 
         return Response(

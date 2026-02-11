@@ -37,7 +37,7 @@ def parse_entry(entry, feed_title):
 
     published_parsed = entry.get('published_parsed') or entry.get('updated_parsed')
     if published_parsed:
-        published_at = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+        published_at = datetime(*published_parsed[:6], tzinfo=timezone.now().tzinfo)
     else:
         published_at = timezone.now()
 

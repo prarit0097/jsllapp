@@ -12,9 +12,15 @@ app.conf.beat_schedule = {
         'task': 'apps.market.tasks.ingest_1m_task',
         'schedule': 60.0,
     },
-    'events-fetch-every-5m': {
+    'events-fetch-open': {
         'task': 'apps.events.tasks.fetch_events_task',
-        'schedule': 300.0,
+        'schedule': 600.0,
+        'args': ('open',),
+    },
+    'events-fetch-closed': {
+        'task': 'apps.events.tasks.fetch_events_task',
+        'schedule': 1800.0,
+        'args': ('closed',),
     },
 }
 

@@ -115,6 +115,7 @@
         .pill.positive { background: #dcfce7; color: #166534; }
         .pill.negative { background: #fee2e2; color: #991b1b; }
         .pill.neutral { background: #e5e7eb; color: #374151; }
+        .pill.impact { background: #ede9fe; color: #5b21b6; }
         .live-dot {
             width: 8px;
             height: 8px;
@@ -196,6 +197,8 @@
                 <div class="value" id="announcements-count">{{ announcements_7d_count }}</div>
                 <div class="note">Latest:</div>
                 <div class="event-headline" id="announcement-headline">{% if latest_announcement %}{{ latest_announcement.headline }}{% else %}No data{% endif %}</div>
+                <div class="note" id="announcement-time">{% if latest_announcement %}{{ latest_announcement.published_at }}{% else %}--{% endif %}</div>
+                <div class="note"><span class="pill impact" id="announcement-impact">Impact: {% if latest_announcement %}{{ latest_announcement.impact_score }}{% else %}0{% endif %}</span></div>
             </div>
             <div class="card">
                 <h2>Events Fetch</h2>
@@ -254,6 +257,8 @@
         const newsSentimentBadge = document.getElementById('news-sentiment-badge');
         const announcementsCountEl = document.getElementById('announcements-count');
         const announcementHeadlineEl = document.getElementById('announcement-headline');
+        const announcementTimeEl = document.getElementById('announcement-time');
+        const announcementImpactEl = document.getElementById('announcement-impact');
         const eventsStatusEl = document.getElementById('events-status');
         const eventsLastRunEl = document.getElementById('events-last-run');
 
@@ -346,10 +351,12 @@
                 newsSentimentBadge.className = `pill ${badge.className}`;
                 announcementsCountEl.textContent = data.announcements_last_7d_count;
                 announcementHeadlineEl.textContent = data.latest_announcement ? data.latest_announcement.headline : 'No data';
-                eventsStatusEl.textContent = data.last_fetch_run && data.last_fetch_run.news_ok ? 'OK' : 'DEGRADED';
+                announcementTimeEl.textContent = data.latest_announcement ? formatIst(data.latest_announcement.published_at) : '--';
+                announcementImpactEl.textContent = `Impact: ${data.latest_announcement ? data.latest_announcement.impact_score : 0}`;
+                eventsStatusEl.textContent = data.last_fetch_run && (data.last_fetch_run.news_ok || data.last_fetch_run.announcements_ok) ? 'OK' : 'DEGRADED';
                 eventsLastRunEl.textContent = data.last_fetch_run ? `Last run: ${data.last_fetch_run.started_at}` : 'No runs yet';
             } catch (err) {
-                eventsStatusEl.textContent = 'DEGRADED';
+                eventsStatusEl.textContent = 'Events unavailable';
             }
         }
 

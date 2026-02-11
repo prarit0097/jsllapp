@@ -1,4 +1,4 @@
-2026-02-11 15:35:05,883 ERROR [celery.utils.dispatch.signal] Signal handler <promise@0x1ec6cafe480 --> <bound method Celery._autodiscover_tasks of <Celery config at 0x1ec6cb6b370>>> raised: ModuleNotFoundError("No module named 'feedparser'")
+2026-02-11 15:56:41,072 ERROR [celery.utils.dispatch.signal] Signal handler <promise@0x24516088040 --> <bound method Celery._autodiscover_tasks of <Celery config at 0x24515ffae00>>> raised: SyntaxError("(unicode error) 'utf-8' codec can't decode byte 0x94 in position 0: invalid start byte", ('E:\\jsll app\\apps\\events\\sentiment.py', 15, 49, '    tokens = [token.strip(".,:;!?()[]{}\\"\'\ufffd).-" ).lower() for token in text.split()]\n', 15, 50))
 Traceback (most recent call last):
   File "E:\jsll app\.venv\lib\site-packages\celery\utils\dispatch\signal.py", line 280, in send
     response = receiver(signal=self, sender=sender, **named)
@@ -18,8 +18,6 @@ Traceback (most recent call last):
     return [find_related_module(pkg, related_name) for pkg in packages]
   File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
     return [find_related_module(pkg, related_name) for pkg in packages]
-  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
-    raise e
   File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
     return importlib.import_module(module_name)
   File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
@@ -32,23 +30,29 @@ Traceback (most recent call last):
   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
   File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
     from .services import fetch_news_rss
-  File "E:\jsll app\apps\events\services.py", line 5, in <module>
-    from .rss import fetch_feeds
-  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
-    import feedparser
-ModuleNotFoundError: No module named 'feedparser'
+  File "E:\jsll app\apps\events\services.py", line 6, in <module>
+    from .sentiment import score_sentiment
+  File "E:\jsll app\apps\events\sentiment.py", line 15
+    tokens = [token.strip(".,:;!?()[]{}\"'\ufffd).-" ).lower() for token in text.split()]
+                                                ^
+SyntaxError: (unicode error) 'utf-8' codec can't decode byte 0x94 in position 0: invalid start byte
 Traceback (most recent call last):
   File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 196, in _run_module_as_main
     return _run_code(code, main_globals, None,
   File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 86, in _run_code
     exec(code, run_globals)
   File "E:\jsll app\.venv\Scripts\celery.exe\__main__.py", line 7, in <module>
-  File "E:\jsll app\.venv\lib[2026-02-11 15:35:37,268: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:36:37,274: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:37:37,283: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:38:37,335: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:39:37,337: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-in invoke
+  File "E:\jsll app\.venv\lib\site-packages\celery\__main__.py", line 15, in main
+    sys.exit(_main())
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\celery.py", line 227, in main
+    return celery(auto_envvar_prefix="CELERY")
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1269, in invoke
     return ctx.invoke(self.callback, **ctx.params)
   File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 824, in invoke
     return callback(*args, **kwargs)
@@ -84,8 +88,6 @@ in invoke
     return [find_related_module(pkg, related_name) for pkg in packages]
   File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
     return [find_related_module(pkg, related_name) for pkg in packages]
-  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
-    raise e
   File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
     return importlib.import_module(module_name)
   File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
@@ -98,8 +100,9 @@ in invoke
   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
   File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
     from .services import fetch_news_rss
-  File "E:\jsll app\apps\events\services.py", line 5, in <module>
-    from .rss import fetch_feeds
-  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
-    import feedparser
-ModuleNotFoundError: No module named 'feedparser'
+  File "E:\jsll app\apps\events\services.py", line 6, in <module>
+    from .sentiment import score_sentiment
+  File "E:\jsll app\apps\events\sentiment.py", line 15
+    tokens = [token.strip(".,:;!?()[]{}\"'\ufffd).-" ).lower() for token in text.split()]
+                                                ^
+SyntaxError: (unicode error) 'utf-8' codec can't decode byte 0x94 in position 0: invalid start byte
