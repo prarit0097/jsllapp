@@ -1,4 +1,4 @@
-from django.db import models
+﻿from django.db import models
 
 
 class NewsItem(models.Model):
@@ -27,13 +27,13 @@ class Announcement(models.Model):
     impact_score = models.IntegerField(default=0)
     low_priority = models.BooleanField(default=False)
     dedupe_hash = models.CharField(max_length=32, blank=True, null=True, db_index=True)
+    dedupe_key = models.CharField(max_length=64, unique=True, db_index=True, blank=True, null=True)
     tags_json = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ['-published_at']
         constraints = [
             models.UniqueConstraint(fields=['headline', 'published_at'], name='uniq_announcement_headline_time'),
-            models.UniqueConstraint(fields=['dedupe_hash'], name='uniq_announcement_dedupe_hash'),
         ]
 
     def __str__(self):

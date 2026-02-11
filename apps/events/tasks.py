@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from zoneinfo import ZoneInfo
 
 from celery import shared_task
@@ -39,15 +39,19 @@ def fetch_events_task(schedule_type='open'):
     try:
         ann_result = fetch_announcements_nse()
         parsed = ann_result['parsed_count']
-        saved = ann_result['saved_count']
+        created = ann_result['saved_count']
+        updated = ann_result['updated_count']
         skipped = ann_result['skipped_duplicates']
+        parse_errors = ann_result['parse_errors']
         errors = ann_result['errors']
 
-        run.announcements_fetched = saved
-        run.announcements_ok = (parsed > 0 or saved > 0) and not errors
+        run.announcements_fetched = created
+        run.announcements_ok = (parsed > 0 or created > 0) and not errors
         if errors:
             notes.append(f"announcements_error: {','.join(errors)}")
-        notes.append(f"ann_parsed={parsed}, ann_saved={saved}, ann_skipped={skipped}")
+        notes.append(
+            f"ann_parsed={parsed}, ann_created={created}, ann_updated={updated}, ann_skipped={skipped}, ann_parse_errors={parse_errors}"
+        )
     except Exception as exc:
         notes.append(f"announcements_error: {exc}")
         logger.exception('Announcements fetch failed: %s', exc)

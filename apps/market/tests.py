@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+﻿from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from unittest.mock import patch
 
@@ -10,7 +10,8 @@ from rest_framework.test import APITestCase
 
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
 from apps.events.services import fetch_announcements_nse
-from apps.events.taxonomy import classify_announcement, compute_dedupe_hash
+from apps.events.taxonomy import classify_announcement
+from apps.events.utils import build_announcement_dedupe_key
 from apps.market.data_quality import DataQualityEngine
 from apps.market.market_time import (
     compute_thresholds,
@@ -135,14 +136,17 @@ class AnnouncementTests(TestCase):
     def test_announcement_dedupe(self):
         tz = ZoneInfo('Asia/Kolkata')
         now = timezone.now().astimezone(tz)
+        key = build_announcement_dedupe_key('JSLL', 'Duplicate announcement', now, '')
         Announcement.objects.create(
             published_at=now,
             headline='Duplicate announcement',
+            dedupe_key=key,
         )
         with self.assertRaises(IntegrityError):
             Announcement.objects.create(
                 published_at=now,
                 headline='Duplicate announcement',
+                dedupe_key=key,
             )
 
     def test_reclassify_command_sets_low_priority(self):
@@ -201,7 +205,6 @@ class AnnouncementTests(TestCase):
             type='other',
             impact_score=0,
             low_priority=True,
-            dedupe_hash=None,
         )
         Announcement.objects.create(
             published_at=base + timedelta(seconds=30),
@@ -210,7 +213,6 @@ class AnnouncementTests(TestCase):
             type='results',
             impact_score=70,
             low_priority=False,
-            dedupe_hash=None,
         )
         call_command('dedupe_announcements')
         remaining = Announcement.objects.all()
@@ -220,25 +222,25 @@ class AnnouncementTests(TestCase):
     def test_dedupe_key_rounds_timestamp_to_minute(self):
         base = timezone.now().replace(second=10, microsecond=0)
         later = base + timedelta(seconds=30)
-        key1 = compute_dedupe_hash('Outcome of Board Meeting', base, '', 'JSLL')
-        key2 = compute_dedupe_hash('Outcome of Board Meeting', later, '', 'JSLL')
+        key1 = build_announcement_dedupe_key('JSLL', 'Outcome of Board Meeting', base, '')
+        key2 = build_announcement_dedupe_key('JSLL', 'Outcome of Board Meeting', later, '')
         self.assertEqual(key1, key2)
 
     def test_unique_constraint_prevents_duplicates(self):
         now = timezone.now()
-        key = compute_dedupe_hash('Outcome of Board Meeting', now, 'http://example.com/a.pdf', 'JSLL')
+        key = build_announcement_dedupe_key('JSLL', 'Outcome of Board Meeting', now, 'http://example.com/a.pdf')
         Announcement.objects.create(
             published_at=now,
             headline='Outcome of Board Meeting',
             url='http://example.com/a.pdf',
-            dedupe_hash=key,
+            dedupe_key=key,
         )
         with self.assertRaises(IntegrityError):
             Announcement.objects.create(
                 published_at=now + timedelta(seconds=5),
                 headline='Outcome of Board Meeting',
                 url='http://example.com/a.pdf',
-                dedupe_hash=key,
+                dedupe_key=key,
             )
 
 

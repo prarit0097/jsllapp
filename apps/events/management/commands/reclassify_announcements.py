@@ -1,10 +1,11 @@
-from collections import defaultdict
+﻿from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.events.models import Announcement
-from apps.events.taxonomy import classify_announcement, compute_dedupe_hash
+from apps.events.taxonomy import classify_announcement
+from apps.events.utils import build_announcement_dedupe_key
 
 
 def _normalize(text):
@@ -12,14 +13,11 @@ def _normalize(text):
 
 
 class Command(BaseCommand):
-    help = 'Reclassify announcements and set dedupe_hash/low_priority.'
+    help = 'Reclassify announcements and set dedupe_key/low_priority.'
 
     def handle(self, *args, **options):
         total = Announcement.objects.count()
         by_results_key = defaultdict(list)
-        seen_hashes = set(
-            Announcement.objects.filter(dedupe_hash__isnull=False).values_list('dedupe_hash', flat=True)
-        )
 
         for ann in Announcement.objects.all().iterator():
             classification = classify_announcement(ann.headline)
@@ -27,16 +25,15 @@ class Command(BaseCommand):
             ann.polarity = classification['polarity']
             ann.impact_score = classification['impact_score']
             ann.low_priority = classification['low_priority']
-            new_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
-
-            if new_hash in seen_hashes and ann.dedupe_hash != new_hash:
-                ann.dedupe_hash = None
-            else:
-                ann.dedupe_hash = new_hash
-                seen_hashes.add(new_hash)
-
             ann.tags_json = {'tags': classification['tags']}
-            ann.save(update_fields=['type', 'polarity', 'impact_score', 'low_priority', 'dedupe_hash', 'tags_json'])
+
+            dedupe_key = build_announcement_dedupe_key('', ann.headline, ann.published_at, ann.url, '')
+            if dedupe_key:
+                exists = Announcement.objects.filter(dedupe_key=dedupe_key).exclude(id=ann.id).exists()
+                if not exists:
+                    ann.dedupe_key = dedupe_key
+
+            ann.save(update_fields=['type', 'polarity', 'impact_score', 'low_priority', 'tags_json', 'dedupe_key'])
 
             if ann.type == 'results':
                 key = (ann.published_at.date().isoformat(), _normalize(ann.headline))

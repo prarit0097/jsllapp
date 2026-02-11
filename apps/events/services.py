@@ -1,4 +1,4 @@
-from zoneinfo import ZoneInfo
+﻿from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.utils import timezone
@@ -7,12 +7,13 @@ from .models import Announcement, NewsItem
 from .nse import fetch_nse_announcements
 from .rss import fetch_feeds
 from .sentiment import score_sentiment
-from .taxonomy import classify_announcement, compute_dedupe_hash, tag_news
+from .taxonomy import classify_announcement, tag_news
+from .utils import build_announcement_dedupe_key
 
 
 def _ensure_ist(dt):
     if not dt:
-        return timezone.now().astimezone(ZoneInfo('Asia/Kolkata'))
+        return None
     if timezone.is_naive(dt):
         return dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
     return dt.astimezone(ZoneInfo('Asia/Kolkata'))
@@ -45,63 +46,76 @@ def fetch_news_rss():
     return len(news_objects), ''
 
 
-def _load_existing_hashes(since, symbol):
-    existing_hashes = set()
-    qs = Announcement.objects.filter(published_at__gte=since).only('headline', 'published_at', 'url')
-    for ann in qs.iterator():
-        existing_hashes.add(compute_dedupe_hash(ann.headline, ann.published_at, ann.url, symbol))
-    return existing_hashes
-
-
 def fetch_announcements_nse(symbol='JSLL'):
     items = fetch_nse_announcements(symbol=symbol)
     if not items:
         return {
             'parsed_count': 0,
             'saved_count': 0,
+            'updated_count': 0,
             'skipped_duplicates': 0,
+            'parse_errors': 0,
             'errors': ['no_items'],
         }
 
-    recent_since = timezone.now() - timezone.timedelta(days=14)
-    existing_hashes = _load_existing_hashes(recent_since, symbol)
-
-    to_create = []
+    created_count = 0
+    updated_count = 0
     skipped_duplicates = 0
-    seen_hashes = set()
+    parse_errors = 0
+    seen_keys = set()
+
     for item in items:
-        headline = ' '.join((item['headline'] or '').split())
+        headline = ' '.join((item.get('headline') or '').split())
         if not headline:
             continue
-        published_at = _ensure_ist(item['published_at'])
-        dedupe_hash = compute_dedupe_hash(headline, published_at, item.get('url', ''), symbol)
-        if dedupe_hash in existing_hashes or dedupe_hash in seen_hashes:
-            skipped_duplicates += 1
+        published_at = _ensure_ist(item.get('published_at'))
+        if not published_at:
+            parse_errors += 1
             continue
 
-        classification = classify_announcement(headline)
-
-        to_create.append(
-            Announcement(
-                published_at=published_at,
-                headline=headline[:500],
-                url=item['url'],
-                type=classification['type'],
-                polarity=classification['polarity'],
-                impact_score=classification['impact_score'],
-                low_priority=classification['low_priority'],
-                dedupe_hash=dedupe_hash,
-                tags_json={'tags': classification['tags']},
-            )
+        dedupe_key = build_announcement_dedupe_key(
+            symbol=symbol,
+            headline=headline,
+            published_at=published_at,
+            doc_url=item.get('url', ''),
+            source_id=item.get('source_id', ''),
         )
-        existing_hashes.add(dedupe_hash)
-        seen_hashes.add(dedupe_hash)
+        if not dedupe_key:
+            parse_errors += 1
+            continue
+        if dedupe_key in seen_keys:
+            skipped_duplicates += 1
+            continue
+        seen_keys.add(dedupe_key)
 
-    Announcement.objects.bulk_create(to_create, ignore_conflicts=True)
+        classification = classify_announcement(headline)
+        defaults = {
+            'published_at': published_at,
+            'headline': headline[:500],
+            'url': item.get('url', ''),
+            'type': classification['type'],
+            'polarity': classification['polarity'],
+            'impact_score': classification['impact_score'],
+            'low_priority': classification['low_priority'],
+            'dedupe_hash': None,
+            'tags_json': {'tags': classification['tags']},
+        }
+
+        obj, created = Announcement.objects.update_or_create(
+            dedupe_key=dedupe_key,
+            defaults=defaults,
+        )
+        if created:
+            created_count += 1
+        else:
+            updated_count += 1
+
     return {
         'parsed_count': len(items),
-        'saved_count': len(to_create),
+        'saved_count': created_count,
+        'updated_count': updated_count,
         'skipped_duplicates': skipped_duplicates,
+        'parse_errors': parse_errors,
         'errors': [],
     }
 
@@ -109,8 +123,12 @@ def fetch_announcements_nse(symbol='JSLL'):
 def create_announcement_from_text(headline, published_at, url=''):
     classification = classify_announcement(headline)
     published_at_ist = _ensure_ist(published_at)
+    if not published_at_ist:
+        raise ValueError('published_at required')
     symbol = getattr(settings, 'JSLL_TICKER', 'JSLL')
+    dedupe_key = build_announcement_dedupe_key(symbol, headline, published_at_ist, url, '')
     return Announcement.objects.create(
+        dedupe_key=dedupe_key,
         published_at=published_at_ist,
         headline=headline[:500],
         url=url,
@@ -118,6 +136,6 @@ def create_announcement_from_text(headline, published_at, url=''):
         polarity=classification['polarity'],
         impact_score=classification['impact_score'],
         low_priority=classification['low_priority'],
-        dedupe_hash=compute_dedupe_hash(headline, published_at_ist, url, symbol),
+        dedupe_hash=None,
         tags_json={'tags': classification['tags']},
     )
