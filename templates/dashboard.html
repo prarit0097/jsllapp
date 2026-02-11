@@ -148,8 +148,8 @@
                 <div class="note" id="freshness">Updated --</div>
             </div>
             <div class="card">
-                <h2>Last Candle Time</h2>
-                <div class="value" id="last-candle-time">{% if last_candle_time %}{{ last_candle_time }}{% else %}--{% endif %}</div>
+                <h2>Last Candle Time (IST)</h2>
+                <div class="value" id="last-candle-time">{% if last_candle_time_ist %}{{ last_candle_time_ist }}{% else %}--{% endif %}</div>
             </div>
             <div class="card">
                 <h2>Pipeline Status</h2>
@@ -217,11 +217,34 @@
         const candles60El = document.getElementById('candles-60');
         const ohlcBody = document.getElementById('ohlc-body');
 
+        const istFormatter = new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+
         function setStatus(ok) {
             pipelineEl.textContent = ok ? 'OK' : 'DEGRADED';
             pipelineEl.classList.toggle('ok', ok);
             pipelineEl.classList.toggle('warn', !ok);
             liveDot.classList.toggle('off', !ok);
+        }
+
+        function formatIst(isoString) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            if (Number.isNaN(date.getTime())) return '--';
+            return istFormatter.format(date) + ' IST';
+        }
+
+        function freshnessText(seconds) {
+            if (typeof seconds !== 'number') return 'Updated --';
+            if (seconds <= 90) return `Updated ${seconds} sec ago`;
+            return `Updated ${seconds} sec ago (market data delayed)`;
         }
 
         async function refreshQuote() {
@@ -232,14 +255,12 @@
                 if (data.last_price !== null) {
                     lastPriceEl.textContent = data.last_price;
                 }
-                if (data.last_candle_time) {
-                    lastCandleEl.textContent = data.last_candle_time;
+                if (data.last_candle_time_ist) {
+                    lastCandleEl.textContent = data.last_candle_time_ist;
+                } else if (data.last_candle_time) {
+                    lastCandleEl.textContent = formatIst(data.last_candle_time);
                 }
-                if (typeof data.seconds_since_last_candle === 'number') {
-                    freshnessEl.textContent = `Updated ${data.seconds_since_last_candle} sec ago`;
-                } else {
-                    freshnessEl.textContent = 'Updated --';
-                }
+                freshnessEl.textContent = freshnessText(data.seconds_since_last_candle);
                 const ok = data.status === 'ok' && (data.seconds_since_last_candle === null || data.seconds_since_last_candle <= 120);
                 setStatus(ok);
             } catch (err) {
@@ -256,7 +277,7 @@
                 if (data.length === 0) return;
                 ohlcBody.innerHTML = data.map((row) => (
                     `<tr>` +
-                    `<td>${row.ts}</td>` +
+                    `<td>${formatIst(row.ts)}</td>` +
                     `<td>${row.open}</td>` +
                     `<td>${row.high}</td>` +
                     `<td>${row.low}</td>` +

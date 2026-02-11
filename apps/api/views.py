@@ -1,4 +1,5 @@
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.shortcuts import render
@@ -29,12 +30,21 @@ def _serialize_run(run):
     }
 
 
+def _format_market_time(dt):
+    if not dt:
+        return None
+    tz = ZoneInfo(settings.JSLL_MARKET_TZ)
+    local_dt = timezone.localtime(dt, tz)
+    return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+
+
 def dashboard(request):
     latest = Ohlc1m.objects.order_by('-ts').first()
     recent = Ohlc1m.objects.order_by('-ts')[:20]
     last_run = IngestRun.objects.first()
 
     last_candle_time = latest.ts if latest else None
+    last_candle_time_ist = _format_market_time(last_candle_time)
     since = timezone.now() - timedelta(minutes=60)
     candles_last_60m = Ohlc1m.objects.filter(ts__gte=since).count()
     data_ok = bool(last_run and (last_run.primary_ok or last_run.fallback_ok) and candles_last_60m > 0)
@@ -47,6 +57,7 @@ def dashboard(request):
             'recent': recent,
             'last_run': last_run,
             'last_candle_time': last_candle_time,
+            'last_candle_time_ist': last_candle_time_ist,
             'candles_last_60m': candles_last_60m,
             'data_ok': data_ok,
             'ticker': settings.JSLL_TICKER,
@@ -102,6 +113,7 @@ class LatestQuoteView(APIView):
                     'market_tz': settings.JSLL_MARKET_TZ,
                     'now_server_time': now_server,
                     'seconds_since_last_candle': seconds_since,
+                    'last_candle_time_ist': None,
                 }
             )
         return Response(
@@ -113,6 +125,7 @@ class LatestQuoteView(APIView):
                 'market_tz': settings.JSLL_MARKET_TZ,
                 'now_server_time': now_server,
                 'seconds_since_last_candle': seconds_since,
+                'last_candle_time_ist': _format_market_time(latest.ts),
             }
         )
 
