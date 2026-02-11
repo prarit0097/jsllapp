@@ -55,12 +55,18 @@ def _load_existing_hashes(since):
 def fetch_announcements_nse(symbol='JSLL'):
     items = fetch_nse_announcements(symbol=symbol)
     if not items:
-        return 0, 'no_items'
+        return {
+            'parsed_count': 0,
+            'saved_count': 0,
+            'skipped_duplicates': 0,
+            'errors': ['no_items'],
+        }
 
     recent_since = timezone.now() - timezone.timedelta(days=14)
     existing_hashes = _load_existing_hashes(recent_since)
 
     to_create = []
+    skipped_duplicates = 0
     for item in items:
         headline = ' '.join((item['headline'] or '').split())
         if not headline:
@@ -68,6 +74,7 @@ def fetch_announcements_nse(symbol='JSLL'):
         published_at = _ensure_ist(item['published_at'])
         dedupe_hash = compute_dedupe_hash(headline, published_at, item.get('url', ''))
         if dedupe_hash in existing_hashes:
+            skipped_duplicates += 1
             continue
 
         classification = classify_announcement(headline)
@@ -88,7 +95,12 @@ def fetch_announcements_nse(symbol='JSLL'):
         existing_hashes.add(dedupe_hash)
 
     Announcement.objects.bulk_create(to_create, ignore_conflicts=True)
-    return len(to_create), ''
+    return {
+        'parsed_count': len(items),
+        'saved_count': len(to_create),
+        'skipped_duplicates': skipped_duplicates,
+        'errors': [],
+    }
 
 
 def create_announcement_from_text(headline, published_at, url=''):

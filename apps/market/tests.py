@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
 from apps.events.services import fetch_announcements_nse
-from apps.events.taxonomy import classify_announcement
+from apps.events.taxonomy import classify_announcement, compute_dedupe_hash
 from apps.market.data_quality import DataQualityEngine
 from apps.market.market_time import (
     compute_thresholds,
@@ -182,10 +182,40 @@ class AnnouncementTests(TestCase):
             {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
             {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
         ]
-        fetch_announcements_nse(symbol='JSLL')
+        result = fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(result['parsed_count'], 2)
+        self.assertEqual(result['saved_count'], 1)
         self.assertEqual(Announcement.objects.count(), 1)
-        fetch_announcements_nse(symbol='JSLL')
+        result = fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(result['parsed_count'], 2)
+        self.assertEqual(result['saved_count'], 0)
         self.assertEqual(Announcement.objects.count(), 1)
+
+    def test_dedupe_prefers_results_over_other(self):
+        now = timezone.now()
+        url = 'http://example.com/doc.pdf'
+        Announcement.objects.create(
+            published_at=now,
+            headline='Clarification',
+            url=url,
+            type='other',
+            impact_score=0,
+            low_priority=True,
+            dedupe_hash=None,
+        )
+        Announcement.objects.create(
+            published_at=now + timedelta(minutes=1),
+            headline='Clarification - Financial Results',
+            url=url,
+            type='results',
+            impact_score=70,
+            low_priority=False,
+            dedupe_hash=None,
+        )
+        call_command('dedupe_announcements')
+        remaining = Announcement.objects.all()
+        self.assertEqual(remaining.count(), 1)
+        self.assertEqual(remaining.first().type, 'results')
 
 
 class IngestionTests(TestCase):

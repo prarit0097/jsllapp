@@ -37,11 +37,17 @@ def fetch_events_task(schedule_type='open'):
         logger.exception('News RSS fetch failed: %s', exc)
 
     try:
-        ann_count, note = fetch_announcements_nse()
-        run.announcements_fetched = ann_count
-        run.announcements_ok = ann_count > 0
-        if note:
-            notes.append(note)
+        ann_result = fetch_announcements_nse()
+        parsed = ann_result['parsed_count']
+        saved = ann_result['saved_count']
+        skipped = ann_result['skipped_duplicates']
+        errors = ann_result['errors']
+
+        run.announcements_fetched = saved
+        run.announcements_ok = (parsed > 0 or saved > 0) and not errors
+        if errors:
+            notes.append(f"announcements_error: {','.join(errors)}")
+        notes.append(f"ann_parsed={parsed}, ann_saved={saved}, ann_skipped={skipped}")
     except Exception as exc:
         notes.append(f"announcements_error: {exc}")
         logger.exception('Announcements fetch failed: %s', exc)
