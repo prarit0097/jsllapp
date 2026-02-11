@@ -76,5 +76,7 @@ class EventsSummarySerializer(serializers.Serializer):
     announcements_impact_sum_24h = serializers.IntegerField()
     announcements_impact_sum_7d = serializers.IntegerField()
     announcements_negative_impact_sum_7d = serializers.IntegerField()
+    announcements_high_impact_7d_count = serializers.IntegerField()
+    announcements_high_impact_24h_count = serializers.IntegerField()
     latest_announcement = serializers.DictField(allow_null=True)
     last_fetch_run = serializers.DictField(allow_null=True)

@@ -197,7 +197,7 @@
                 <div class="note"><span id="news-sentiment-badge" class="pill neutral">Neutral</span></div>
             </div>
             <div class="card">
-                <h2>Announcements (last 7d)</h2>
+                <h2>Announcements (high impact)</h2>
                 <div class="value" id="announcements-count">{{ announcements_7d_count }}</div>
                 <div class="subtext" id="announcements-24h">Last 24h: {{ announcements_24h_count }}</div>
                 <div class="note">Latest:</div>
@@ -361,8 +361,8 @@
                 const badge = sentimentBadge(data.news_last_24h_sentiment_avg);
                 newsSentimentBadge.textContent = badge.label;
                 newsSentimentBadge.className = `pill ${badge.className}`;
-                announcementsCountEl.textContent = data.announcements_last_7d_count;
-                announcements24hEl.textContent = `Last 24h: ${data.announcements_last_24h_count}`;
+                announcementsCountEl.textContent = data.announcements_high_impact_7d_count;
+                announcements24hEl.textContent = `Last 24h: ${data.announcements_high_impact_24h_count}`;
                 announcementHeadlineEl.textContent = data.latest_announcement ? data.latest_announcement.headline : 'No data';
                 announcementTimeEl.textContent = data.latest_announcement ? formatIst(data.latest_announcement.published_at) : '--';
                 announcementImpactEl.textContent = `Impact: ${data.latest_announcement ? data.latest_announcement.impact_score : 0}`;

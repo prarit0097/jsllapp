@@ -136,8 +136,8 @@ def dashboard(request):
     now_ist = _ist_now()
     announcements_7d_since = now_ist - timedelta(days=7)
     announcements_24h_since = now_ist - timedelta(hours=24)
-    announcements_7d_qs = Announcement.objects.filter(published_at__gte=announcements_7d_since)
-    announcements_24h_qs = Announcement.objects.filter(published_at__gte=announcements_24h_since)
+    announcements_7d_qs = Announcement.objects.filter(published_at__gte=announcements_7d_since, impact_score__gte=10)
+    announcements_24h_qs = Announcement.objects.filter(published_at__gte=announcements_24h_since, impact_score__gte=10)
     announcements_count = announcements_7d_qs.count()
     announcements_24h_count = announcements_24h_qs.count()
     latest_announcement = Announcement.objects.order_by('-published_at').first()
@@ -337,8 +337,11 @@ class EventsSummaryView(APIView):
         announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
         announcements_last_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since)
 
-        announcements_count = announcements_last_7d.count()
-        announcements_24h_count = announcements_last_24h.count()
+        high_impact_7d = announcements_last_7d.filter(impact_score__gte=10)
+        high_impact_24h = announcements_last_24h.filter(impact_score__gte=10)
+
+        announcements_count = high_impact_7d.count()
+        announcements_24h_count = high_impact_24h.count()
         impact_sum_24h = announcements_last_24h.aggregate(total=Sum('impact_score'))['total'] or 0
         impact_sum_7d = announcements_last_7d.aggregate(total=Sum('impact_score'))['total'] or 0
         negative_impact_7d = announcements_last_7d.filter(impact_score__lt=0).aggregate(total=Sum('impact_score'))['total'] or 0
@@ -355,6 +358,8 @@ class EventsSummaryView(APIView):
                 'announcements_impact_sum_24h': impact_sum_24h,
                 'announcements_impact_sum_7d': impact_sum_7d,
                 'announcements_negative_impact_sum_7d': negative_impact_7d,
+                'announcements_high_impact_7d_count': high_impact_7d.count(),
+                'announcements_high_impact_24h_count': high_impact_24h.count(),
                 'latest_announcement': {
                     'published_at': latest_announcement.published_at,
                     'headline': latest_announcement.headline,

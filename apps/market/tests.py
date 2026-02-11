@@ -76,6 +76,16 @@ class TaxonomyTests(TestCase):
         typ, polarity, impact_score, tags = classify_announcement('Outcome of Board Meeting')
         self.assertEqual(typ, 'board_meeting')
 
+    def test_classify_results_strength(self):
+        typ, polarity, impact_score, tags = classify_announcement('Unaudited Financial Results Q3')
+        self.assertEqual(typ, 'results')
+        self.assertGreaterEqual(impact_score, 50)
+
+    def test_classify_compliance(self):
+        typ, polarity, impact_score, tags = classify_announcement('Copy of Newspaper Publication')
+        self.assertEqual(typ, 'compliance')
+        self.assertLess(impact_score, 10)
+
 
 class AnnouncementTests(TestCase):
     def test_announcements_7d_count(self):
@@ -84,10 +94,17 @@ class AnnouncementTests(TestCase):
         Announcement.objects.create(
             published_at=now - timedelta(days=2),
             headline='Recent announcement',
+            impact_score=20,
+        )
+        Announcement.objects.create(
+            published_at=now - timedelta(days=2),
+            headline='Low impact announcement',
+            impact_score=5,
         )
         Announcement.objects.create(
             published_at=now - timedelta(days=10),
             headline='Old announcement',
+            impact_score=20,
         )
         response = self.client.get('/api/v1/jsll/events/summary')
         self.assertEqual(response.status_code, 200)
@@ -233,14 +250,21 @@ class EventsApiTests(APITestCase):
         Announcement.objects.create(
             published_at=timezone.now(),
             headline='Announcement one',
+            impact_score=20,
+        )
+        Announcement.objects.create(
+            published_at=timezone.now(),
+            headline='Low impact',
+            impact_score=0,
         )
         EventsFetchRun.objects.create(news_ok=True, announcements_ok=True)
         response = self.client.get('/api/v1/jsll/events/summary')
         self.assertEqual(response.status_code, 200)
         payload = response.json()
+        self.assertEqual(payload['announcements_last_7d_count'], 1)
+        self.assertEqual(payload['announcements_high_impact_7d_count'], 1)
         self.assertIn('news_last_24h_count', payload)
         self.assertIn('news_last_24h_sentiment_avg', payload)
-        self.assertIn('announcements_last_7d_count', payload)
         self.assertIn('announcements_last_24h_count', payload)
         self.assertIn('announcements_impact_sum_24h', payload)
         self.assertIn('announcements_impact_sum_7d', payload)

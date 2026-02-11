@@ -49,10 +49,16 @@ def fetch_announcements_nse(symbol='JSLL'):
     if not items:
         return 0, 'no_items'
 
+    recent_since = timezone.now() - timezone.timedelta(days=7)
     existing = set(
-        Announcement.objects.filter(published_at__gte=timezone.now() - timezone.timedelta(days=7))
+        Announcement.objects.filter(published_at__gte=recent_since)
         .values_list('headline', 'published_at')
     )
+    existing_results_days = set(
+        Announcement.objects.filter(published_at__gte=recent_since, type='results')
+        .values_list('published_at', flat=True)
+    )
+    existing_results_days = {dt.date() for dt in existing_results_days}
 
     to_create = []
     for item in items:
@@ -61,6 +67,10 @@ def fetch_announcements_nse(symbol='JSLL'):
         if key in existing:
             continue
         typ, polarity, impact_score, tags = classify_announcement(item['headline'])
+        if typ == 'results' and published_at.date() in existing_results_days:
+            continue
+        if impact_score < 10:
+            tags['low_priority'] = True
         to_create.append(
             Announcement(
                 published_at=published_at,
@@ -72,6 +82,8 @@ def fetch_announcements_nse(symbol='JSLL'):
                 tags_json=tags,
             )
         )
+        if typ == 'results':
+            existing_results_days.add(published_at.date())
 
     Announcement.objects.bulk_create(to_create, ignore_conflicts=True)
     return len(to_create), ''
