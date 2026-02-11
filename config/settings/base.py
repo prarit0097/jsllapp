@@ -18,7 +18,7 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-JSLL_TICKER = os.getenv('JSLL_TICKER', 'JSLL.BO')
+JSLL_TICKER = os.getenv('JSLL_TICKER', 'JSLL.NS')
 JSLL_MARKET_TZ = os.getenv('JSLL_MARKET_TZ', 'Asia/Kolkata')
 
 INSTALLED_APPS = [
@@ -121,7 +121,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'JSLL Decision Intelligence API',
-    'DESCRIPTION': 'API documentation for JSLL market and events services.',
+    'DESCRIPTION': 'JSLL-only market, events, features, ML tournament APIs',
     'VERSION': '0.1.0',
 }
 
