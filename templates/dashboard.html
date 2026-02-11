@@ -70,6 +70,7 @@
         }
         .status.ok { color: var(--ok); }
         .status.warn { color: var(--warn); }
+        .status.closed { color: var(--muted); }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -111,6 +112,9 @@
             font-size: 0.8rem;
             margin-left: 0.4rem;
         }
+        .pill.positive { background: #dcfce7; color: #166534; }
+        .pill.negative { background: #fee2e2; color: #991b1b; }
+        .pill.neutral { background: #e5e7eb; color: #374151; }
         .live-dot {
             width: 8px;
             height: 8px;
@@ -122,6 +126,15 @@
         .live-dot.off {
             background: var(--muted);
             box-shadow: none;
+        }
+        .section-title {
+            margin: 2rem 0 1rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .event-headline {
+            font-size: 0.95rem;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -153,7 +166,7 @@
             </div>
             <div class="card">
                 <h2>Pipeline Status</h2>
-                <div class="value status {% if pipeline_status == 'ok' %}ok{% else %}warn{% endif %}" id="pipeline-status">{{ pipeline_status|upper }}</div>
+                <div class="value status {% if pipeline_status == 'ok' %}ok{% elif pipeline_status == 'closed' %}closed{% else %}warn{% endif %}" id="pipeline-status">{{ pipeline_status|upper }}</div>
                 <div class="note">Candles last 60m: <span id="candles-60">{{ candles_last_60m }}</span></div>
                 <div class="note" id="pipeline-reason">{{ pipeline_reason }}</div>
             </div>
@@ -167,6 +180,27 @@
                 {% else %}
                     <div class="note">No runs yet.</div>
                 {% endif %}
+            </div>
+        </div>
+
+        <div class="section-title">Events</div>
+        <div class="grid">
+            <div class="card">
+                <h2>News (last 24h)</h2>
+                <div class="value" id="news-count">{{ news_24h_count }}</div>
+                <div class="note">Avg sentiment: <span id="news-sentiment">{{ news_24h_sentiment_avg|default:'0.0' }}</span></div>
+                <div class="note"><span id="news-sentiment-badge" class="pill neutral">Neutral</span></div>
+            </div>
+            <div class="card">
+                <h2>Announcements (last 7d)</h2>
+                <div class="value" id="announcements-count">{{ announcements_7d_count }}</div>
+                <div class="note">Latest:</div>
+                <div class="event-headline" id="announcement-headline">{% if latest_announcement %}{{ latest_announcement.headline }}{% else %}No data{% endif %}</div>
+            </div>
+            <div class="card">
+                <h2>Events Fetch</h2>
+                <div class="value" id="events-status">{% if events_last_run and events_last_run.news_ok %}OK{% else %}DEGRADED{% endif %}</div>
+                <div class="note" id="events-last-run">{% if events_last_run %}Last run: {{ events_last_run.started_at }}{% else %}No runs yet{% endif %}</div>
             </div>
         </div>
 
@@ -215,6 +249,13 @@
         const livePill = document.getElementById('live-pill');
         const candles60El = document.getElementById('candles-60');
         const ohlcBody = document.getElementById('ohlc-body');
+        const newsCountEl = document.getElementById('news-count');
+        const newsSentimentEl = document.getElementById('news-sentiment');
+        const newsSentimentBadge = document.getElementById('news-sentiment-badge');
+        const announcementsCountEl = document.getElementById('announcements-count');
+        const announcementHeadlineEl = document.getElementById('announcement-headline');
+        const eventsStatusEl = document.getElementById('events-status');
+        const eventsLastRunEl = document.getElementById('events-last-run');
 
         const istFormatter = new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
@@ -230,7 +271,8 @@
             const statusText = status ? status.toUpperCase() : 'DEGRADED';
             pipelineEl.textContent = statusText;
             pipelineEl.classList.toggle('ok', status === 'ok');
-            pipelineEl.classList.toggle('warn', status !== 'ok');
+            pipelineEl.classList.toggle('warn', status !== 'ok' && status !== 'closed');
+            pipelineEl.classList.toggle('closed', status === 'closed');
             liveDot.classList.toggle('off', status !== 'ok');
             livePill.textContent = status === 'ok' ? 'LIVE' : (status === 'closed' ? 'CLOSED' : 'DELAYED');
         }
@@ -247,6 +289,16 @@
             if (status === 'ok') return `Updated ${seconds} sec ago`;
             if (status === 'closed') return `Updated ${seconds} sec ago (market closed)`;
             return `Updated ${seconds} sec ago (market data delayed)`;
+        }
+
+        function sentimentBadge(value) {
+            if (value > 0.2) {
+                return { label: 'Positive', className: 'positive' };
+            }
+            if (value < -0.2) {
+                return { label: 'Negative', className: 'negative' };
+            }
+            return { label: 'Neutral', className: 'neutral' };
         }
 
         async function refreshQuote() {
@@ -282,6 +334,25 @@
             }
         }
 
+        async function refreshEvents() {
+            try {
+                const res = await fetch('/api/v1/jsll/events/summary');
+                if (!res.ok) throw new Error('bad response');
+                const data = await res.json();
+                newsCountEl.textContent = data.news_last_24h_count;
+                newsSentimentEl.textContent = data.news_last_24h_sentiment_avg.toFixed(2);
+                const badge = sentimentBadge(data.news_last_24h_sentiment_avg);
+                newsSentimentBadge.textContent = badge.label;
+                newsSentimentBadge.className = `pill ${badge.className}`;
+                announcementsCountEl.textContent = data.announcements_last_7d_count;
+                announcementHeadlineEl.textContent = data.latest_announcement ? data.latest_announcement.headline : 'No data';
+                eventsStatusEl.textContent = data.last_fetch_run && data.last_fetch_run.news_ok ? 'OK' : 'DEGRADED';
+                eventsLastRunEl.textContent = data.last_fetch_run ? `Last run: ${data.last_fetch_run.started_at}` : 'No runs yet';
+            } catch (err) {
+                eventsStatusEl.textContent = 'DEGRADED';
+            }
+        }
+
         async function refreshOhlc() {
             try {
                 const res = await fetch('/api/v1/jsll/ohlc/1m?limit=20');
@@ -307,9 +378,11 @@
 
         refreshQuote();
         refreshStatus();
+        refreshEvents();
         refreshOhlc();
         setInterval(refreshQuote, 3000);
         setInterval(refreshStatus, 15000);
+        setInterval(refreshEvents, 15000);
         setInterval(refreshOhlc, 15000);
     </script>
 </body>

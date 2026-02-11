@@ -27,10 +27,10 @@ class QuoteEndpointTests(APITestCase):
         response = self.client.get('/api/v1/jsll/quote/latest')
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload['status'], 'ok')
         self.assertIn('ticker', payload)
         self.assertIn('now_server_time', payload)
         self.assertIn('seconds_since_last_candle', payload)
+        self.assertIn('status', payload)
 
 
 class OhlcEndpointTests(APITestCase):
@@ -54,3 +54,6 @@ class PipelineStatusTests(APITestCase):
         self.assertIn('ticker', payload)
         self.assertIn('now_server_time', payload)
         self.assertIn('seconds_since_last_candle', payload)
+        self.assertIn('status', payload)
+        self.assertIn('reason', payload)
+        self.assertIn('thresholds', payload)

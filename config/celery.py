@@ -12,6 +12,10 @@ app.conf.beat_schedule = {
         'task': 'apps.market.tasks.ingest_1m_task',
         'schedule': 60.0,
     },
+    'events-fetch-every-5m': {
+        'task': 'apps.events.tasks.fetch_events_task',
+        'schedule': 300.0,
+    },
 }
 
 app.autodiscover_tasks()

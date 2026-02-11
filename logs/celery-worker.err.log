@@ -1,383 +1,108 @@
-[2026-02-11 15:10:37,789: INFO/SpawnPoolWorker-1] child process 12428 calling self.run()
-[2026-02-11 15:10:37,814: INFO/SpawnPoolWorker-4] child process 6404 calling self.run()
-[2026-02-11 15:10:37,871: INFO/SpawnPoolWorker-2] child process 2596 calling self.run()
-[2026-02-11 15:10:37,892: INFO/SpawnPoolWorker-3] child process 6572 calling self.run()
-[2026-02-11 15:10:39,137: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2026-02-11 15:10:41,181: INFO/MainProcess] mingle: searching for neighbors
-[2026-02-11 15:10:43,823: ERROR/MainProcess] Process 'SpawnPoolWorker-4' pid:5224 exited with 'exitcode 3221225786'
-[2026-02-11 15:10:43,827: ERROR/MainProcess] Process 'SpawnPoolWorker-3' pid:11828 exited with 'exitcode 3221225786'
-[2026-02-11 15:10:43,829: ERROR/MainProcess] Process 'SpawnPoolWorker-2' pid:8048 exited with 'exitcode 3221225786'
-[2026-02-11 15:10:44,457: INFO/SpawnPoolWorker-6] child process 6240 calling self.run()
-[2026-02-11 15:10:44,457: INFO/SpawnPoolWorker-5] child process 2088 calling self.run()
-[2026-02-11 15:10:44,485: INFO/SpawnPoolWorker-7] child process 13204 calling self.run()
-[2026-02-11 15:10:45,477: ERROR/MainProcess] Process 'SpawnPoolWorker-7' pid:5452 exited with 'exitcode 3221225786'
-[2026-02-11 15:10:45,478: ERROR/MainProcess] Process 'SpawnPoolWorker-6' pid:12748 exited with 'exitcode 3221225786'
-[2026-02-11 15:10:46,133: INFO/SpawnPoolWorker-9] child process 11104 calling self.run()
-[2026-02-11 15:10:46,151: INFO/SpawnPoolWorker-8] child process 5600 calling self.run()
-[2026-02-11 15:10:48,276: INFO/MainProcess] mingle: all alone
-[2026-02-11 15:10:58,440: INFO/MainProcess] celery@DESKTOP-8S5JF90 ready.
-[2026-02-11 15:10:58,457: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[747a5a20-360f-4752-97ad-765b862cf177] received
-[2026-02-11 15:10:58,460: ERROR/SpawnPoolWorker-9] Pool process <billiard.pool.Worker object at 0x00000127A4417C70> error: PermissionError(13, 'Access is denied', None, 5, None)
+2026-02-11 15:35:05,838 ERROR [celery.utils.dispatch.signal] Signal handler <promise@0x2007d3ae480 --> <bound method Celery._autodiscover_tasks of <Celery config at 0x2007d41b370>>> raised: ModuleNotFoundError("No module named 'feedparser'")
 Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
+  File "E:\jsll app\.venv\lib\site-packages\celery\utils\dispatch\signal.py", line 280, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 161, in __call__
+    return self.throw()
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 158, in __call__
+    retval = fun(*final_args, **final_kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 805, in _autodiscover_tasks
+    return self._autodiscover_tasks_from_fixups(related_name)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 814, in _autodiscover_tasks_from_fixups
+    return self._autodiscover_tasks_from_names([
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 809, in _autodiscover_tasks_from_names
+    return self.loader.autodiscover_tasks(
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 220, in autodiscover_tasks
+    mod.__name__ for mod in autodiscover_tasks(packages or (),
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in autodiscover_tasks
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
+    raise e
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
+    return importlib.import_module(module_name)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
+    from .services import fetch_news_rss
+  File "E:\jsll app\apps\events\services.py", line 5, in <module>
+    from .rss import fetch_feeds
+  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
+    import feedparser
+ModuleNotFoundError: No module named 'feedparser'
 Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:10:58,460: ERROR/SpawnPoolWorker-9] Pool process <billiard.pool.Worker object at 0x00000127A4417C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:10:59,266: ERROR/MainProcess] Process 'SpawnPoolWorker-9' pid:7600 exited with 'exitcode 1'
-[2026-02-11 15:10:59,870: INFO/SpawnPoolWorker-10] child process 7968 calling self.run()
-[2026-02-11 15:11:37,018: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[25ee20c2-a31e-48e6-a7d2-e81416911532] received
-[2026-02-11 15:11:37,022: ERROR/SpawnPoolWorker-10] Pool process <billiard.pool.Worker object at 0x000001BA9AC07C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:11:37,022: ERROR/SpawnPoolWorker-10] Pool process <billiard.pool.Worker object at 0x000001BA9AC07C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:11:37,021: ERROR/SpawnPoolWorker-8] Pool process <billiard.pool.Worker object at 0x0000014F68707C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 395, in get_payload
-    return self._reader.recv_bytes()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 240, in recv_bytes
-    buf = self._recv_bytes(maxlength)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 353, in _recv_bytes
-    result = self._get_more_data(ov, maxsize)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 382, in _get_more_data
-    assert err == 0
-AssertionError
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:11:37,021: ERROR/SpawnPoolWorker-8] Pool process <billiard.pool.Worker object at 0x0000014F68707C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 395, in get_payload
-    return self._reader.recv_bytes()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 240, in recv_bytes
-    buf = self._recv_bytes(maxlength)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 353, in _recv_bytes
-    result = self._get_more_data(ov, maxsize)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\connection.py", line 382, in _get_more_data
-    assert err == 0
-AssertionError
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:11:37,239: ERROR/MainProcess] Process 'SpawnPoolWorker-10' pid:12408 exited with 'exitcode 1'
-[2026-02-11 15:11:37,239: ERROR/MainProcess] Process 'SpawnPoolWorker-8' pid:6472 exited with 'exitcode 1'
-[2026-02-11 15:11:37,713: INFO/SpawnPoolWorker-12] child process 11756 calling self.run()
-[2026-02-11 15:11:37,713: INFO/SpawnPoolWorker-11] child process 11960 calling self.run()
-[2026-02-11 15:12:37,019: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[fc7c106a-540f-4adc-ab6a-bfbd749b6feb] received
-[2026-02-11 15:12:37,022: ERROR/SpawnPoolWorker-12] Pool process <billiard.pool.Worker object at 0x00000161F80F7C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:12:37,022: ERROR/SpawnPoolWorker-12] Pool process <billiard.pool.Worker object at 0x00000161F80F7C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:12:37,161: ERROR/MainProcess] Process 'SpawnPoolWorker-12' pid:10976 exited with 'exitcode 1'
-[2026-02-11 15:12:37,646: INFO/SpawnPoolWorker-13] child process 9560 calling self.run()
-[2026-02-11 15:13:37,010: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[3f192690-77ae-434a-ba49-9cc3ef9ee3f8] received
-[2026-02-11 15:13:37,010: ERROR/SpawnPoolWorker-13] Pool process <billiard.pool.Worker object at 0x0000018C393D7C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:13:37,010: ERROR/SpawnPoolWorker-13] Pool process <billiard.pool.Worker object at 0x0000018C393D7C70> error: PermissionError(13, 'Access is denied', None, 5, None)
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 473, in receive
-    ready, req = _receive(1.0)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 445, in _recv
-    return True, loads(get_payload())
-  File "E:\jsll app\.venv\lib\site-packages\billiard\queues.py", line 394, in get_payload
-    with self._rlock:
-  File "E:\jsll app\.venv\lib\site-packages\billiard\synchronize.py", line 118, in __exit__
-    return self._semlock.__exit__(*args)
-OSError: [WinError 6] The handle is invalid
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 351, in workloop
-    req = wait_for_job()
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 480, in receive
-    raise SystemExit(EX_FAILURE)
-SystemExit: 1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 292, in __call__
-    sys.exit(self.workloop(pid=pid))
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 396, in workloop
-    self._ensure_messages_consumed(completed=completed)
-  File "E:\jsll app\.venv\lib\site-packages\billiard\pool.py", line 406, in _ensure_messages_consumed
-    if self.on_ready_counter.value >= completed:
-  File "<string>", line 3, in getvalue
-PermissionError: [WinError 5] Access is denied
-[2026-02-11 15:13:37,072: ERROR/MainProcess] Process 'SpawnPoolWorker-13' pid:6156 exited with 'exitcode 1'
-[2026-02-11 15:13:37,518: INFO/SpawnPoolWorker-14] child process 10028 calling self.run()
-[2026-02-11 15:14:37,059: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[86dc683b-9c85-4ad0-a0ff-cb676b76d2b4] received
-[2026-02-11 15:15:37,039: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[3d2171f8-3fb0-4e5c-877d-7b962841862e] received
-[2026-02-11 15:16:37,043: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[df9373ba-d548-4c21-859f-ebbb2317ffe2] received
-[2026-02-11 15:17:37,048: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[631bb64a-61ad-4fe0-8177-c21c660747e4] received
-[2026-02-11 15:18:37,057: INFO/MainProcess] Task apps.market.tasks.ingest_1m_task[96f288e6-b73d-467f-9f41-4ecfcdc1c9fd] received
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "E:\jsll app\.venv\Scripts\celery.exe\__main__.py", line 7, in <module>
+  File "E:\jsll app\.venv\lib\site-packages\celery\__main__.py", line 15, in main
+    sys.exit(_main())
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\celery.py", line 227, in main
+    return celery(auto_envvar_prefix="CELERY")
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\click\decorators.py", line 34, in new_func
+    return f(get_current_context(), *args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\base.py", line 135, in caller
+    return f(ctx, *args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\worker.py", line 359, in worker
+    worker = app.Worker(
+  File "E:\jsll app\.venv\lib\site-packages\celery\worker\worker.py", line 94, in __init__
+    self.app.loader.init_worker()
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 110, in init_worker
+    self.import_default_modules()
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 104, in import_default_modules
+    raise response
+  File "E:\jsll app\.venv\lib\site-packages\celery\utils\dispatch\signal.py", line 280, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 161, in __call__
+    return self.throw()
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 158, in __call__
+    retval = fun(*final_args, **final_kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 805, in _autodiscover_tasks
+    return self._autodiscover_tasks_from_fixups(related_name)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 814, in _autodiscover_tasks_from_fixups
+    return self._autodiscover_tasks_from_names([
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 809, in _autodiscover_tasks_from_names
+    return self.loader.autodiscover_tasks(
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 220, in autodiscover_tasks
+    mod.__name__ for mod in autodiscover_tasks(packages or (),
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in autodiscover_tasks
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
+    raise e
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
+    return importlib.import_module(module_name)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
+    from .services import fetch_news_rss
+  File "E:\jsll app\apps\events\services.py", line 5, in <module>
+    from .rss import fetch_feeds
+  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
+    import feedparser
+ModuleNotFoundError: No module named 'feedparser'

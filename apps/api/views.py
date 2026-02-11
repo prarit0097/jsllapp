@@ -2,11 +2,13 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.db.models import Avg, Count
 from django.shortcuts import render
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.events.models import Announcement, EventsFetchRun, NewsItem
 from apps.market.market_time import (
     compute_thresholds,
     is_within_today_session_end,
@@ -31,6 +33,21 @@ def _serialize_run(run):
         'candles_saved': run.candles_saved,
         'missing_filled': run.missing_filled,
         'outliers_rejected': run.outliers_rejected,
+        'notes': run.notes,
+    }
+
+
+def _serialize_events_run(run):
+    if run is None:
+        return None
+    return {
+        'id': run.id,
+        'started_at': run.started_at,
+        'finished_at': run.finished_at,
+        'news_ok': run.news_ok,
+        'announcements_ok': run.announcements_ok,
+        'news_fetched': run.news_fetched,
+        'announcements_fetched': run.announcements_fetched,
         'notes': run.notes,
     }
 
@@ -95,6 +112,16 @@ def dashboard(request):
 
     pipeline = _pipeline_status(latest, candles_last_60m)
 
+    news_24h_since = timezone.now() - timedelta(hours=24)
+    news_count = NewsItem.objects.filter(published_at__gte=news_24h_since).count()
+    news_sentiment_avg = NewsItem.objects.filter(published_at__gte=news_24h_since).aggregate(
+        avg=Avg('sentiment')
+    )['avg']
+    announcements_7d_since = timezone.now() - timedelta(days=7)
+    announcements_count = Announcement.objects.filter(published_at__gte=announcements_7d_since).count()
+    latest_announcement = Announcement.objects.order_by('-published_at').first()
+    last_events_run = EventsFetchRun.objects.first()
+
     return render(
         request,
         'dashboard.html',
@@ -110,6 +137,11 @@ def dashboard(request):
             'pipeline_reason': pipeline['reason'],
             'ticker': settings.JSLL_TICKER,
             'market_tz': settings.JSLL_MARKET_TZ,
+            'news_24h_count': news_count,
+            'news_24h_sentiment_avg': news_sentiment_avg,
+            'announcements_7d_count': announcements_count,
+            'latest_announcement': latest_announcement,
+            'events_last_run': last_events_run,
         },
     )
 
@@ -201,5 +233,77 @@ class PipelineStatusView(APIView):
                 'completeness_ok': pipeline['completeness_ok'],
                 'reason': pipeline['reason'],
                 'thresholds': pipeline['thresholds'],
+            }
+        )
+
+
+class NewsView(APIView):
+    def get(self, request):
+        limit = int(request.query_params.get('limit', 50))
+        limit = max(1, min(limit, 200))
+        items = NewsItem.objects.order_by('-published_at')[:limit]
+        payload = [
+            {
+                'published_at': item.published_at,
+                'source': item.source,
+                'title': item.title,
+                'url': item.url,
+                'summary': item.summary,
+                'sentiment': item.sentiment,
+                'relevance': item.relevance,
+                'entities_json': item.entities_json,
+            }
+            for item in items
+        ]
+        return Response(payload)
+
+
+class AnnouncementsView(APIView):
+    def get(self, request):
+        limit = int(request.query_params.get('limit', 50))
+        limit = max(1, min(limit, 200))
+        items = Announcement.objects.order_by('-published_at')[:limit]
+        payload = [
+            {
+                'published_at': item.published_at,
+                'headline': item.headline,
+                'url': item.url,
+                'type': item.type,
+                'polarity': item.polarity,
+                'impact_score': item.impact_score,
+                'tags_json': item.tags_json,
+            }
+            for item in items
+        ]
+        return Response(payload)
+
+
+class EventsSummaryView(APIView):
+    def get(self, request):
+        news_24h_since = timezone.now() - timedelta(hours=24)
+        news_last_24h = NewsItem.objects.filter(published_at__gte=news_24h_since)
+        news_count = news_last_24h.count()
+        news_sentiment_avg = news_last_24h.aggregate(avg=Avg('sentiment'))['avg'] or 0.0
+
+        announcements_7d_since = timezone.now() - timedelta(days=7)
+        announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
+        announcements_count = announcements_last_7d.count()
+        latest_announcement = announcements_last_7d.order_by('-published_at').first()
+        last_fetch_run = EventsFetchRun.objects.first()
+
+        return Response(
+            {
+                'news_last_24h_count': news_count,
+                'news_last_24h_sentiment_avg': news_sentiment_avg,
+                'announcements_last_7d_count': announcements_count,
+                'latest_announcement': {
+                    'published_at': latest_announcement.published_at,
+                    'headline': latest_announcement.headline,
+                    'url': latest_announcement.url,
+                    'type': latest_announcement.type,
+                    'polarity': latest_announcement.polarity,
+                    'impact_score': latest_announcement.impact_score,
+                } if latest_announcement else None,
+                'last_fetch_run': _serialize_events_run(last_fetch_run),
             }
         )

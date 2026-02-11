@@ -3,7 +3,10 @@ from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APITestCase
 
+from apps.events.models import Announcement, EventsFetchRun, NewsItem
+from apps.events.taxonomy import classify_announcement
 from apps.market.data_quality import DataQualityEngine
 from apps.market.market_time import (
     compute_thresholds,
@@ -53,6 +56,20 @@ class MarketTimeTests(TestCase):
         tz = ZoneInfo('Asia/Kolkata')
         dt = datetime(2026, 2, 11, 15, 30, tzinfo=tz)
         self.assertTrue(is_within_today_session_end(dt))
+
+
+class TaxonomyTests(TestCase):
+    def test_classify_dividend(self):
+        typ, polarity, impact_score, tags = classify_announcement('Dividend declared for Q4')
+        self.assertEqual(typ, 'dividend')
+        self.assertEqual(polarity, 1)
+        self.assertGreater(impact_score, 0)
+
+    def test_classify_legal(self):
+        typ, polarity, impact_score, tags = classify_announcement('Company receives penalty notice')
+        self.assertEqual(typ, 'legal')
+        self.assertEqual(polarity, -1)
+        self.assertLess(impact_score, 0)
 
 
 class IngestionTests(TestCase):
@@ -158,3 +175,46 @@ class IngestionTests(TestCase):
     def test_is_market_open_basic(self):
         now = timezone.now().replace(hour=10, minute=0)
         self.assertTrue(is_market_open(now))
+
+
+class EventsApiTests(APITestCase):
+    def test_news_endpoint(self):
+        NewsItem.objects.create(
+            published_at=timezone.now(),
+            source='test',
+            title='Test news',
+            url='https://example.com/test-news',
+            summary='summary',
+            sentiment=0.1,
+            relevance=1.0,
+            entities_json={},
+        )
+        response = self.client.get('/api/v1/jsll/news?limit=10')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(len(response.json()) >= 1)
+
+    def test_events_summary(self):
+        NewsItem.objects.create(
+            published_at=timezone.now(),
+            source='test',
+            title='Test news',
+            url='https://example.com/test-news-2',
+            summary='summary',
+            sentiment=0.3,
+            relevance=1.0,
+            entities_json={},
+        )
+        EventsFetchRun.objects.create(news_ok=True, announcements_ok=False)
+        response = self.client.get('/api/v1/jsll/events/summary')
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('news_last_24h_count', payload)
+        self.assertIn('news_last_24h_sentiment_avg', payload)
+        self.assertIn('announcements_last_7d_count', payload)
+        self.assertIn('latest_announcement', payload)
+        self.assertIn('last_fetch_run', payload)
+
+    def test_openapi_docs(self):
+        self.assertEqual(self.client.get('/api/schema/').status_code, 200)
+        self.assertEqual(self.client.get('/api/docs/').status_code, 200)
+        self.assertEqual(self.client.get('/api/redoc/').status_code, 200)

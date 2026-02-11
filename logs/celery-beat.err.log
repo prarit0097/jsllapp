@@ -1,22 +1,105 @@
-[2026-02-11 15:10:36,900: INFO/MainProcess] beat: Starting...
-[2026-02-11 15:10:39,027: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:11:37,005: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:12:37,007: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:13:37,010: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:14:37,034: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:15:37,039: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:16:37,040: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:17:37,048: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:18:37,049: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:19:37,049: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:20:37,093: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:21:37,094: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:22:37,095: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:23:37,109: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:24:37,113: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:25:37,113: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:26:37,137: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:27:37,137: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:28:37,153: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:29:37,191: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
-[2026-02-11 15:30:37,197: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+2026-02-11 15:35:05,883 ERROR [celery.utils.dispatch.signal] Signal handler <promise@0x1ec6cafe480 --> <bound method Celery._autodiscover_tasks of <Celery config at 0x1ec6cb6b370>>> raised: ModuleNotFoundError("No module named 'feedparser'")
+Traceback (most recent call last):
+  File "E:\jsll app\.venv\lib\site-packages\celery\utils\dispatch\signal.py", line 280, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 161, in __call__
+    return self.throw()
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 158, in __call__
+    retval = fun(*final_args, **final_kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 805, in _autodiscover_tasks
+    return self._autodiscover_tasks_from_fixups(related_name)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 814, in _autodiscover_tasks_from_fixups
+    return self._autodiscover_tasks_from_names([
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 809, in _autodiscover_tasks_from_names
+    return self.loader.autodiscover_tasks(
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 220, in autodiscover_tasks
+    mod.__name__ for mod in autodiscover_tasks(packages or (),
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in autodiscover_tasks
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
+    raise e
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
+    return importlib.import_module(module_name)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
+    from .services import fetch_news_rss
+  File "E:\jsll app\apps\events\services.py", line 5, in <module>
+    from .rss import fetch_feeds
+  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
+    import feedparser
+ModuleNotFoundError: No module named 'feedparser'
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "E:\jsll app\.venv\Scripts\celery.exe\__main__.py", line 7, in <module>
+  File "E:\jsll app\.venv\lib[2026-02-11 15:35:37,268: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+[2026-02-11 15:36:37,274: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+[2026-02-11 15:37:37,283: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+[2026-02-11 15:38:37,335: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+[2026-02-11 15:39:37,337: INFO/MainProcess] Scheduler: Sending due task ingest-1m-every-minute (apps.market.tasks.ingest_1m_task)
+in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "E:\jsll app\.venv\lib\site-packages\click\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\click\decorators.py", line 34, in new_func
+    return f(get_current_context(), *args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\base.py", line 135, in caller
+    return f(ctx, *args, **kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\bin\beat.py", line 72, in beat
+    return beat().run()
+  File "E:\jsll app\.venv\lib\site-packages\celery\apps\beat.py", line 82, in run
+    self.init_loader()
+  File "E:\jsll app\.venv\lib\site-packages\celery\apps\beat.py", line 132, in init_loader
+    self.app.loader.init_worker()
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 110, in init_worker
+    self.import_default_modules()
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 104, in import_default_modules
+    raise response
+  File "E:\jsll app\.venv\lib\site-packages\celery\utils\dispatch\signal.py", line 280, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 161, in __call__
+    return self.throw()
+  File "E:\jsll app\.venv\lib\site-packages\vine\promises.py", line 158, in __call__
+    retval = fun(*final_args, **final_kwargs)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 805, in _autodiscover_tasks
+    return self._autodiscover_tasks_from_fixups(related_name)
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 814, in _autodiscover_tasks_from_fixups
+    return self._autodiscover_tasks_from_names([
+  File "E:\jsll app\.venv\lib\site-packages\celery\app\base.py", line 809, in _autodiscover_tasks_from_names
+    return self.loader.autodiscover_tasks(
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 220, in autodiscover_tasks
+    mod.__name__ for mod in autodiscover_tasks(packages or (),
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in autodiscover_tasks
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 246, in <listcomp>
+    return [find_related_module(pkg, related_name) for pkg in packages]
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 278, in find_related_module
+    raise e
+  File "E:\jsll app\.venv\lib\site-packages\celery\loaders\base.py", line 270, in find_related_module
+    return importlib.import_module(module_name)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "E:\jsll app\apps\events\tasks.py", line 10, in <module>
+    from .services import fetch_news_rss
+  File "E:\jsll app\apps\events\services.py", line 5, in <module>
+    from .rss import fetch_feeds
+  File "E:\jsll app\apps\events\rss.py", line 5, in <module>
+    import feedparser
+ModuleNotFoundError: No module named 'feedparser'
