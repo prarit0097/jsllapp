@@ -255,6 +255,16 @@ class AnnouncementTests(TestCase):
             dt = parse_nse_datetime_to_utc(text)
             self.assertIsNotNone(dt.tzinfo)
 
+    def test_parse_nse_datetime_numeric_formats(self):
+        dt1 = parse_nse_datetime_to_utc('10022026122421')
+        self.assertIsNotNone(dt1.tzinfo)
+        dt2 = parse_nse_datetime_to_utc('09022026192507')
+        self.assertIsNotNone(dt2.tzinfo)
+
+    def test_parse_nse_datetime_numeric_invalid_length(self):
+        with self.assertRaises(ValueError):
+            parse_nse_datetime_to_utc('123')
+
     @patch('apps.events.services.fetch_nse_announcements')
     def test_invalid_published_text_skips_row(self, mock_fetch):
         mock_fetch.return_value = [

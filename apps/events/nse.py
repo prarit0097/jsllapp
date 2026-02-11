@@ -28,6 +28,28 @@ def parse_nse_datetime_to_utc(published_text):
     if not text:
         raise ValueError('empty published_text')
 
+    if text.isdigit():
+        if len(text) == 14:
+            dd = int(text[0:2])
+            mm = int(text[2:4])
+            yyyy = int(text[4:8])
+            HH = int(text[8:10])
+            MM = int(text[10:12])
+            SS = int(text[12:14])
+            dt = datetime(yyyy, mm, dd, HH, MM, SS)
+            ist = dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
+            return ist.astimezone(ZoneInfo('UTC'))
+        if len(text) == 12:
+            dd = int(text[0:2])
+            mm = int(text[2:4])
+            yyyy = int(text[4:8])
+            HH = int(text[8:10])
+            MM = int(text[10:12])
+            dt = datetime(yyyy, mm, dd, HH, MM, 0)
+            ist = dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
+            return ist.astimezone(ZoneInfo('UTC'))
+        raise ValueError(f'unrecognized numeric published_text length: {len(text)}')
+
     formats = [
         '%d-%b-%Y %H:%M:%S',
         '%d-%b-%Y %H:%M',
