@@ -5,79 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>JSLL Dashboard</title>
     <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --ok: #16a34a;
+            --warn: #f59e0b;
+            --border: #e2e8f0;
+        }
         body {
             font-family: "Segoe UI", Arial, sans-serif;
-            margin: 2rem;
-            color: #111827;
-            background: #f9fafb;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
         }
-        .card {
-            background: #ffffff;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 3rem;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 1.5rem;
         }
+        h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+        .note {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1rem 1.2rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--border);
+        }
+        .card h2 {
+            font-size: 0.9rem;
+            color: var(--muted);
+            font-weight: 600;
+            margin: 0 0 0.6rem;
+        }
+        .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .status {
+            font-weight: 700;
+        }
+        .status.ok { color: var(--ok); }
+        .status.warn { color: var(--warn); }
         table {
             width: 100%;
             border-collapse: collapse;
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
         }
         th, td {
             text-align: left;
-            padding: 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
+            padding: 0.65rem 0.8rem;
+            border-bottom: 1px solid var(--border);
         }
         th {
-            color: #6b7280;
+            background: #f1f5f9;
+            font-size: 0.85rem;
+            color: var(--muted);
             font-weight: 600;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .refresh {
+            display: inline-block;
+            padding: 0.5rem 0.9rem;
+            background: #0f172a;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <h1>JSLL Dashboard</h1>
+    <div class="container">
+        <header>
+            <div>
+                <h1>JSLL Market Dashboard</h1>
+                <div class="note">Ingestion runs via scheduler later. Refresh to update.</div>
+            </div>
+            <div class="actions">
+                <a class="refresh" href="/">Refresh</a>
+            </div>
+        </header>
 
-    <div class="card">
-        <h2>Latest Price</h2>
-        {% if latest %}
-            <p><strong>{{ latest.close }}</strong></p>
-            <p>Last candle time: {{ latest.ts }}</p>
-        {% else %}
-            <p>No data yet.</p>
-        {% endif %}
-    </div>
+        <div class="grid">
+            <div class="card">
+                <h2>Last Price</h2>
+                <div class="value">{% if latest %}{{ latest.close }}{% else %}--{% endif %}</div>
+            </div>
+            <div class="card">
+                <h2>Last Candle Time</h2>
+                <div class="value">{% if last_candle_time %}{{ last_candle_time }}{% else %}--{% endif %}</div>
+            </div>
+            <div class="card">
+                <h2>Pipeline Status</h2>
+                {% if data_ok %}
+                    <div class="value status ok">OK</div>
+                {% else %}
+                    <div class="value status warn">DEGRADED</div>
+                {% endif %}
+                <div class="note">Candles last 60m: {{ candles_last_60m }}</div>
+            </div>
+            <div class="card">
+                <h2>Last Ingest Run</h2>
+                {% if last_run %}
+                    <div class="note">Primary OK: {{ last_run.primary_ok }} | Fallback OK: {{ last_run.fallback_ok }}</div>
+                    <div class="note">Saved: {{ last_run.candles_saved }} | Missing: {{ last_run.missing_filled }}</div>
+                    <div class="note">Outliers: {{ last_run.outliers_rejected }}</div>
+                    <div class="note">Finished: {{ last_run.finished_at }}</div>
+                {% else %}
+                    <div class="note">No runs yet.</div>
+                {% endif %}
+            </div>
+        </div>
 
-    <div class="card">
-        <h2>Last 10 Candles</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Open</th>
-                    <th>High</th>
-                    <th>Low</th>
-                    <th>Close</th>
-                    <th>Volume</th>
-                    <th>Source</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for candle in recent %}
-                <tr>
-                    <td>{{ candle.ts }}</td>
-                    <td>{{ candle.open }}</td>
-                    <td>{{ candle.high }}</td>
-                    <td>{{ candle.low }}</td>
-                    <td>{{ candle.close }}</td>
-                    <td>{{ candle.volume }}</td>
-                    <td>{{ candle.source }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7">No candles yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="card">
+            <h2>Last 20 Candles</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Open</th>
+                        <th>High</th>
+                        <th>Low</th>
+                        <th>Close</th>
+                        <th>Volume</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candle in recent %}
+                    <tr>
+                        <td>{{ candle.ts }}</td>
+                        <td>{{ candle.open }}</td>
+                        <td>{{ candle.high }}</td>
+                        <td>{{ candle.low }}</td>
+                        <td>{{ candle.close }}</td>
+                        <td>{{ candle.volume }}</td>
+                        <td>{{ candle.source }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">No candles yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </body>
 </html>

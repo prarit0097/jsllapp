@@ -35,3 +35,15 @@ class OhlcEndpointTests(APITestCase):
         response = self.client.get('/api/v1/jsll/ohlc/1m?limit=5')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(len(response.json()) > 0)
+
+
+class PipelineStatusTests(APITestCase):
+    def test_pipeline_status_returns_expected_keys(self):
+        ingest_1m_candles(MockPriceProvider())
+        response = self.client.get('/api/v1/jsll/pipeline/status')
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('last_run', payload)
+        self.assertIn('last_candle_time', payload)
+        self.assertIn('candles_last_60m', payload)
+        self.assertIn('data_ok', payload)

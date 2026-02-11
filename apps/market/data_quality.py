@@ -7,7 +7,7 @@ class DataQualityEngine:
 
     def fill_missing_candles(self, existing_candles, new_candles):
         if not new_candles:
-            return []
+            return [], 0
 
         last_ts = None
         last_close = None
@@ -17,6 +17,7 @@ class DataQualityEngine:
             last_close = last['close']
 
         filled = []
+        missing_filled = 0
         for candle in new_candles:
             if last_ts is not None:
                 gap = int((candle['ts'] - last_ts).total_seconds() // 60)
@@ -34,11 +35,12 @@ class DataQualityEngine:
                                 'source': 'fill',
                             }
                         )
+                        missing_filled += 1
             filled.append(candle)
             last_ts = candle['ts']
             last_close = candle['close']
 
-        return filled
+        return filled, missing_filled
 
     def detect_outliers(self, candle, prev_candle):
         if prev_candle is None:
@@ -56,10 +58,11 @@ class DataQualityEngine:
 
     def clean_batch(self, existing_last_candle, new_batch):
         if not new_batch:
-            return []
+            return [], {'missing_filled': 0, 'outliers_rejected': 0}
 
         sorted_batch = sorted(new_batch, key=lambda c: c['ts'])
         cleaned = []
+        outliers_rejected = 0
 
         prev = existing_last_candle
         if prev is not None:
@@ -78,6 +81,7 @@ class DataQualityEngine:
                 continue
 
             if self.detect_outliers(candle, prev):
+                outliers_rejected += 1
                 continue
 
             candle = self.volume_sanity(candle)
@@ -85,4 +89,6 @@ class DataQualityEngine:
             prev = candle
 
         existing_list = [prev] if existing_last_candle is not None else []
-        return self.fill_missing_candles(existing_list, cleaned)
+        filled, missing_filled = self.fill_missing_candles(existing_list, cleaned)
+        stats = {'missing_filled': missing_filled, 'outliers_rejected': outliers_rejected}
+        return filled, stats
