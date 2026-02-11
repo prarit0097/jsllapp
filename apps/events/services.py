@@ -63,17 +63,20 @@ def fetch_announcements_nse(symbol='JSLL'):
 
     to_create = []
     for item in items:
+        headline = ' '.join((item['headline'] or '').split())
+        if not headline:
+            continue
         published_at = _ensure_ist(item['published_at'])
-        dedupe_hash = compute_dedupe_hash(item['headline'], published_at, item.get('url', ''))
+        dedupe_hash = compute_dedupe_hash(headline, published_at, item.get('url', ''))
         if dedupe_hash in existing_hashes:
             continue
 
-        classification = classify_announcement(item['headline'])
+        classification = classify_announcement(headline)
 
         to_create.append(
             Announcement(
                 published_at=published_at,
-                headline=item['headline'][:500],
+                headline=headline[:500],
                 url=item['url'],
                 type=classification['type'],
                 polarity=classification['polarity'],

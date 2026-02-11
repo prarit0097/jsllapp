@@ -14,9 +14,8 @@ class Command(BaseCommand):
         by_hash = defaultdict(list)
 
         for ann in Announcement.objects.all().iterator():
-            if not ann.dedupe_hash:
-                ann.dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
-                ann.save(update_fields=['dedupe_hash'])
+            ann.dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+            ann.save(update_fields=['dedupe_hash'])
             by_hash[ann.dedupe_hash].append(ann)
 
         deleted = 0

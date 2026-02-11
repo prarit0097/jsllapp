@@ -1,21 +1,8 @@
 import hashlib
-import os
-from urllib.parse import urlparse
 
 
 def _normalize(text):
     return ' '.join((text or '').lower().split())
-
-
-def _normalize_url(url):
-    if not url:
-        return ''
-    try:
-        parsed = urlparse(url)
-        filename = os.path.basename(parsed.path or '')
-        return _normalize(filename) if filename else _normalize(url)
-    except Exception:
-        return _normalize(url)
 
 
 def classify_announcement(headline, summary=''):
@@ -108,8 +95,7 @@ def classify_announcement(headline, summary=''):
 
 def compute_dedupe_hash(headline, published_at, url=''):
     day = published_at.date().isoformat() if published_at else 'unknown'
-    normalized_url = _normalize_url(url)
-    base = f"{day}|{_normalize(headline)}|{normalized_url}"
+    base = f"{day}|{_normalize(headline)}"
     return hashlib.md5(base.encode('utf-8')).hexdigest()
 
 
