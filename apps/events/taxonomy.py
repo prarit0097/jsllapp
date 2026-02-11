@@ -1,5 +1,6 @@
 import hashlib
-from urllib.parse import urlparse
+from urllib.parse import urlsplit, urlunsplit
+from zoneinfo import ZoneInfo
 
 
 def _normalize(text):
@@ -10,11 +11,23 @@ def _normalize_url(url):
     if not url:
         return ''
     try:
-        parsed = urlparse(url)
-        base = f"{parsed.netloc}{parsed.path}" if parsed.netloc or parsed.path else url
-        return _normalize(base)
+        parts = urlsplit(url.strip())
+        scheme = parts.scheme.lower()
+        netloc = parts.netloc.lower()
+        path = parts.path
+        return _normalize(urlunsplit((scheme, netloc, path, '', '')))
     except Exception:
         return _normalize(url)
+
+
+def _floor_to_minute_ist(dt):
+    if not dt:
+        return None
+    try:
+        local = dt.astimezone(ZoneInfo('Asia/Kolkata'))
+    except Exception:
+        local = dt
+    return local.replace(second=0, microsecond=0)
 
 
 def classify_announcement(headline, summary=''):
@@ -105,13 +118,23 @@ def classify_announcement(headline, summary=''):
     }
 
 
-def compute_dedupe_hash(headline, published_at, url=''):
-    day = published_at.date().isoformat() if published_at else 'unknown'
+def compute_soft_key(published_at, url='', symbol=''):
+    normalized_url = _normalize_url(url)
+    if not normalized_url:
+        return None
+    dt_floor = _floor_to_minute_ist(published_at)
+    dt_key = dt_floor.isoformat() if dt_floor else 'unknown'
+    return f"{symbol}|{dt_key}|{normalized_url}"
+
+
+def compute_dedupe_hash(headline, published_at, url='', symbol=''):
+    dt_floor = _floor_to_minute_ist(published_at)
+    dt_key = dt_floor.isoformat() if dt_floor else 'unknown'
     normalized_url = _normalize_url(url)
     if normalized_url:
-        base = f"{day}|{normalized_url}"
+        base = f"{symbol}|{dt_key}|{_normalize(headline)}|{normalized_url}"
     else:
-        base = f"{day}|{_normalize(headline)}"
+        base = f"{symbol}|{dt_key}|{_normalize(headline)}"
     return hashlib.md5(base.encode('utf-8')).hexdigest()
 
 

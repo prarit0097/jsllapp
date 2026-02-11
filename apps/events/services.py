@@ -1,5 +1,6 @@
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.utils import timezone
 
 from .models import Announcement, NewsItem
@@ -44,11 +45,11 @@ def fetch_news_rss():
     return len(news_objects), ''
 
 
-def _load_existing_hashes(since):
+def _load_existing_hashes(since, symbol):
     existing_hashes = set()
     qs = Announcement.objects.filter(published_at__gte=since).only('headline', 'published_at', 'url')
     for ann in qs.iterator():
-        existing_hashes.add(compute_dedupe_hash(ann.headline, ann.published_at, ann.url))
+        existing_hashes.add(compute_dedupe_hash(ann.headline, ann.published_at, ann.url, symbol))
     return existing_hashes
 
 
@@ -63,17 +64,18 @@ def fetch_announcements_nse(symbol='JSLL'):
         }
 
     recent_since = timezone.now() - timezone.timedelta(days=14)
-    existing_hashes = _load_existing_hashes(recent_since)
+    existing_hashes = _load_existing_hashes(recent_since, symbol)
 
     to_create = []
     skipped_duplicates = 0
+    seen_hashes = set()
     for item in items:
         headline = ' '.join((item['headline'] or '').split())
         if not headline:
             continue
         published_at = _ensure_ist(item['published_at'])
-        dedupe_hash = compute_dedupe_hash(headline, published_at, item.get('url', ''))
-        if dedupe_hash in existing_hashes:
+        dedupe_hash = compute_dedupe_hash(headline, published_at, item.get('url', ''), symbol)
+        if dedupe_hash in existing_hashes or dedupe_hash in seen_hashes:
             skipped_duplicates += 1
             continue
 
@@ -93,6 +95,7 @@ def fetch_announcements_nse(symbol='JSLL'):
             )
         )
         existing_hashes.add(dedupe_hash)
+        seen_hashes.add(dedupe_hash)
 
     Announcement.objects.bulk_create(to_create, ignore_conflicts=True)
     return {
@@ -106,6 +109,7 @@ def fetch_announcements_nse(symbol='JSLL'):
 def create_announcement_from_text(headline, published_at, url=''):
     classification = classify_announcement(headline)
     published_at_ist = _ensure_ist(published_at)
+    symbol = getattr(settings, 'JSLL_TICKER', 'JSLL')
     return Announcement.objects.create(
         published_at=published_at_ist,
         headline=headline[:500],
@@ -114,6 +118,6 @@ def create_announcement_from_text(headline, published_at, url=''):
         polarity=classification['polarity'],
         impact_score=classification['impact_score'],
         low_priority=classification['low_priority'],
-        dedupe_hash=compute_dedupe_hash(headline, published_at_ist, url),
+        dedupe_hash=compute_dedupe_hash(headline, published_at_ist, url, symbol),
         tags_json={'tags': classification['tags']},
     )

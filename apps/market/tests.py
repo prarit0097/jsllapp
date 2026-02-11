@@ -192,10 +192,10 @@ class AnnouncementTests(TestCase):
         self.assertEqual(Announcement.objects.count(), 1)
 
     def test_dedupe_prefers_results_over_other(self):
-        now = timezone.now()
+        base = timezone.now().replace(second=10, microsecond=0)
         url = 'http://example.com/doc.pdf'
         Announcement.objects.create(
-            published_at=now,
+            published_at=base,
             headline='Clarification',
             url=url,
             type='other',
@@ -204,7 +204,7 @@ class AnnouncementTests(TestCase):
             dedupe_hash=None,
         )
         Announcement.objects.create(
-            published_at=now + timedelta(minutes=1),
+            published_at=base + timedelta(seconds=30),
             headline='Clarification - Financial Results',
             url=url,
             type='results',
@@ -216,6 +216,30 @@ class AnnouncementTests(TestCase):
         remaining = Announcement.objects.all()
         self.assertEqual(remaining.count(), 1)
         self.assertEqual(remaining.first().type, 'results')
+
+    def test_dedupe_key_rounds_timestamp_to_minute(self):
+        base = timezone.now().replace(second=10, microsecond=0)
+        later = base + timedelta(seconds=30)
+        key1 = compute_dedupe_hash('Outcome of Board Meeting', base, '', 'JSLL')
+        key2 = compute_dedupe_hash('Outcome of Board Meeting', later, '', 'JSLL')
+        self.assertEqual(key1, key2)
+
+    def test_unique_constraint_prevents_duplicates(self):
+        now = timezone.now()
+        key = compute_dedupe_hash('Outcome of Board Meeting', now, 'http://example.com/a.pdf', 'JSLL')
+        Announcement.objects.create(
+            published_at=now,
+            headline='Outcome of Board Meeting',
+            url='http://example.com/a.pdf',
+            dedupe_hash=key,
+        )
+        with self.assertRaises(IntegrityError):
+            Announcement.objects.create(
+                published_at=now + timedelta(seconds=5),
+                headline='Outcome of Board Meeting',
+                url='http://example.com/a.pdf',
+                dedupe_hash=key,
+            )
 
 
 class IngestionTests(TestCase):
