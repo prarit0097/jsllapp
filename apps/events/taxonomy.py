@@ -30,31 +30,38 @@ def classify_announcement(headline, summary=''):
     if has('outcome of board meeting') and has(*results_keywords):
         typ = 'results'
         impact_score = 70
+        low_priority = False
     elif has('financial results', 'unaudited financial results', 'unaudited'):
         typ = 'results'
         impact_score = 70
+        low_priority = False
     elif has('outcome of board meeting'):
         typ = 'board_meeting'
         impact_score = 25
+        low_priority = False
 
     if has('dividend'):
         typ = 'dividend'
         polarity = 1
         impact_score = max(impact_score, 40)
+        low_priority = False
 
     if has('bonus') or has('split'):
         typ = 'bonus' if has('bonus') else 'split'
         polarity = 1
         impact_score = max(impact_score, 45)
+        low_priority = False
 
     if has('fund raise', 'preferential', 'warrant'):
         typ = 'fundraise'
         impact_score = max(impact_score, 25)
+        low_priority = False
 
     if has('penalty', 'court', 'notice', 'legal'):
         typ = 'legal'
         polarity = -1
         impact_score = min(impact_score, -40) if impact_score else -40
+        low_priority = False
 
     if has('insider trading', 'insider'):
         typ = 'insider'
@@ -86,9 +93,10 @@ def classify_announcement(headline, summary=''):
     }
 
 
-def compute_dedupe_hash(headline, published_at, typ):
+def compute_dedupe_hash(headline, published_at, url=''):
     day = published_at.date().isoformat() if published_at else 'unknown'
-    base = f"{day}|{typ}|{_normalize(headline)}"
+    normalized_url = _normalize(url) if url else ''
+    base = f"{day}|{_normalize(headline)}|{normalized_url}"
     return hashlib.md5(base.encode('utf-8')).hexdigest()
 
 

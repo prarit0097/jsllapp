@@ -32,7 +32,8 @@ class Announcement(models.Model):
     class Meta:
         ordering = ['-published_at']
         constraints = [
-            models.UniqueConstraint(fields=['headline', 'published_at'], name='uniq_announcement_headline_time')
+            models.UniqueConstraint(fields=['headline', 'published_at'], name='uniq_announcement_headline_time'),
+            models.UniqueConstraint(fields=['dedupe_hash'], name='uniq_announcement_dedupe_hash'),
         ]
 
     def __str__(self):

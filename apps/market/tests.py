@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.db.utils import IntegrityError
@@ -8,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
+from apps.events.services import fetch_announcements_nse
 from apps.events.taxonomy import classify_announcement
 from apps.market.data_quality import DataQualityEngine
 from apps.market.market_time import (
@@ -77,11 +79,17 @@ class TaxonomyTests(TestCase):
         result = classify_announcement('Outcome of Board Meeting')
         self.assertEqual(result['type'], 'board_meeting')
         self.assertGreaterEqual(result['impact_score'], 25)
+        self.assertFalse(result['low_priority'])
 
     def test_classify_results_strength(self):
         result = classify_announcement('Outcome of Board Meeting - Unaudited Financial Results Q3')
         self.assertIn(result['type'], {'results', 'board_meeting'})
         self.assertGreaterEqual(result['impact_score'], 25)
+        self.assertFalse(result['low_priority'])
+
+    def test_classify_results_low_priority_false(self):
+        result = classify_announcement('Clarification - Financial Results')
+        self.assertEqual(result['type'], 'results')
         self.assertFalse(result['low_priority'])
 
     def test_classify_insider(self):
@@ -146,6 +154,38 @@ class AnnouncementTests(TestCase):
         ann = Announcement.objects.get()
         self.assertTrue(ann.low_priority)
         self.assertLessEqual(ann.impact_score, 5)
+
+    def test_reclassify_clusters_results(self):
+        now = timezone.now()
+        Announcement.objects.create(
+            published_at=now,
+            headline='Outcome of Board Meeting - Unaudited Financial Results',
+            type='results',
+            impact_score=70,
+            low_priority=False,
+        )
+        Announcement.objects.create(
+            published_at=now + timedelta(minutes=1),
+            headline='Outcome of Board Meeting - Unaudited Financial Results',
+            type='results',
+            impact_score=70,
+            low_priority=False,
+        )
+        call_command('reclassify_announcements')
+        kept = Announcement.objects.filter(low_priority=False, impact_score__gte=10)
+        self.assertEqual(kept.count(), 1)
+
+    @patch('apps.events.services.fetch_nse_announcements')
+    def test_fetch_announcements_dedupe(self, mock_fetch):
+        now = timezone.now()
+        mock_fetch.return_value = [
+            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
+            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
+        ]
+        fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(Announcement.objects.count(), 1)
+        fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(Announcement.objects.count(), 1)
 
 
 class IngestionTests(TestCase):

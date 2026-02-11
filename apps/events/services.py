@@ -49,33 +49,23 @@ def fetch_announcements_nse(symbol='JSLL'):
     if not items:
         return 0, 'no_items'
 
-    recent_since = timezone.now() - timezone.timedelta(days=7)
-    existing = set(
-        Announcement.objects.filter(published_at__gte=recent_since)
-        .values_list('headline', 'published_at')
+    recent_since = timezone.now() - timezone.timedelta(days=14)
+    existing_hashes = set(
+        Announcement.objects.filter(published_at__gte=recent_since, dedupe_hash__isnull=False)
+        .values_list('dedupe_hash', flat=True)
     )
-    existing_results_days = set(
-        Announcement.objects.filter(published_at__gte=recent_since, type='results')
-        .values_list('published_at', flat=True)
-    )
-    existing_results_days = {dt.date() for dt in existing_results_days}
 
     to_create = []
     for item in items:
         published_at = _ensure_ist(item['published_at'])
-        key = (item['headline'], published_at)
-        if key in existing:
+        dedupe_hash = compute_dedupe_hash(item['headline'], published_at, item.get('url', ''))
+        if dedupe_hash in existing_hashes:
             continue
 
         classification = classify_announcement(item['headline'])
         typ = classification['type']
         impact_score = classification['impact_score']
         low_priority = classification['low_priority']
-
-        if typ == 'results' and published_at.date() in existing_results_days:
-            low_priority = True
-
-        dedupe_hash = compute_dedupe_hash(item['headline'], published_at, typ)
 
         to_create.append(
             Announcement(
@@ -90,8 +80,7 @@ def fetch_announcements_nse(symbol='JSLL'):
                 tags_json={'tags': classification['tags']},
             )
         )
-        if typ == 'results':
-            existing_results_days.add(published_at.date())
+        existing_hashes.add(dedupe_hash)
 
     Announcement.objects.bulk_create(to_create, ignore_conflicts=True)
     return len(to_create), ''
@@ -99,14 +88,15 @@ def fetch_announcements_nse(symbol='JSLL'):
 
 def create_announcement_from_text(headline, published_at, url=''):
     classification = classify_announcement(headline)
+    published_at_ist = _ensure_ist(published_at)
     return Announcement.objects.create(
-        published_at=_ensure_ist(published_at),
+        published_at=published_at_ist,
         headline=headline[:500],
         url=url,
         type=classification['type'],
         polarity=classification['polarity'],
         impact_score=classification['impact_score'],
         low_priority=classification['low_priority'],
-        dedupe_hash=compute_dedupe_hash(headline, published_at, classification['type']),
+        dedupe_hash=compute_dedupe_hash(headline, published_at_ist, url),
         tags_json={'tags': classification['tags']},
     )
