@@ -88,6 +88,10 @@ class Ohlc1mView(APIView):
 class LatestQuoteView(APIView):
     def get(self, request):
         latest = Ohlc1m.objects.order_by('-ts').first()
+        now_server = timezone.now().astimezone(timezone.get_current_timezone())
+        seconds_since = None
+        if latest:
+            seconds_since = int((now_server - latest.ts).total_seconds())
         if latest is None:
             return Response(
                 {
@@ -96,6 +100,8 @@ class LatestQuoteView(APIView):
                     'status': 'no_data',
                     'ticker': settings.JSLL_TICKER,
                     'market_tz': settings.JSLL_MARKET_TZ,
+                    'now_server_time': now_server,
+                    'seconds_since_last_candle': seconds_since,
                 }
             )
         return Response(
@@ -105,6 +111,8 @@ class LatestQuoteView(APIView):
                 'status': 'ok',
                 'ticker': settings.JSLL_TICKER,
                 'market_tz': settings.JSLL_MARKET_TZ,
+                'now_server_time': now_server,
+                'seconds_since_last_candle': seconds_since,
             }
         )
 

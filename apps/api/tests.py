@@ -26,9 +26,12 @@ class QuoteEndpointTests(APITestCase):
         ingest_1m_candles(MockPriceProvider())
         response = self.client.get('/api/v1/jsll/quote/latest')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], 'ok')
-        self.assertIn('ticker', response.json())
-        self.assertIn('market_tz', response.json())
+        payload = response.json()
+        self.assertEqual(payload['status'], 'ok')
+        self.assertIn('ticker', payload)
+        self.assertIn('market_tz', payload)
+        self.assertIn('now_server_time', payload)
+        self.assertIn('seconds_since_last_candle', payload)
 
 
 class OhlcEndpointTests(APITestCase):

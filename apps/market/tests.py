@@ -8,6 +8,7 @@ from apps.market.models import IngestRun, Ohlc1m
 from apps.market.providers.mock_provider import MockPriceProvider
 from apps.market.reconcile import reconcile_batches
 from apps.market.services import ingest_1m_candles, ingest_1m_candles_multi
+from apps.market.tasks import is_market_open
 
 
 class DummyProvider:
@@ -117,3 +118,7 @@ class IngestionTests(TestCase):
         self.assertEqual(IngestRun.objects.count(), 1)
         self.assertGreater(Ohlc1m.objects.count(), 0)
         self.assertTrue(run.primary_ok)
+
+    def test_is_market_open_basic(self):
+        now = timezone.now().replace(hour=10, minute=0)
+        self.assertTrue(is_market_open(now))
