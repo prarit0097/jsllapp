@@ -7,9 +7,22 @@ def _normalize(text):
     return ' '.join((text or '').lower().split())
 
 
+def _normalize_url(url):
+    if not url:
+        return ''
+    try:
+        from urllib.parse import urlparse
+        import os
+        parsed = urlparse(url)
+        filename = os.path.basename(parsed.path or '')
+        return _normalize(filename) if filename else _normalize(url)
+    except Exception:
+        return _normalize(url)
+
+
 def _compute_dedupe_hash(headline, published_at, url=''):
     day = published_at.date().isoformat() if published_at else 'unknown'
-    normalized_url = _normalize(url) if url else ''
+    normalized_url = _normalize_url(url)
     base = f"{day}|{_normalize(headline)}|{normalized_url}"
     import hashlib
     return hashlib.md5(base.encode('utf-8')).hexdigest()
@@ -20,19 +33,21 @@ def populate_and_dedupe(apps, schema_editor):
     by_hash = {}
     for ann in Announcement.objects.all().iterator():
         dedupe_hash = ann.dedupe_hash or _compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
-        if ann.dedupe_hash != dedupe_hash:
-            Announcement.objects.filter(id=ann.id).update(dedupe_hash=dedupe_hash)
         by_hash.setdefault(dedupe_hash, []).append(ann)
 
     to_delete = []
+    to_keep = []
     for items in by_hash.values():
-        if len(items) <= 1:
-            continue
         items_sorted = sorted(items, key=lambda x: (x.impact_score, x.published_at), reverse=True)
+        to_keep.append(items_sorted[0])
         to_delete.extend([item.id for item in items_sorted[1:]])
 
     if to_delete:
         Announcement.objects.filter(id__in=to_delete).delete()
+
+    for ann in to_keep:
+        dedupe_hash = _compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+        Announcement.objects.filter(id=ann.id).update(dedupe_hash=dedupe_hash)
 
 
 class Migration(migrations.Migration):
