@@ -65,6 +65,8 @@ class AnnouncementSerializer(serializers.Serializer):
     type = serializers.CharField()
     polarity = serializers.IntegerField()
     impact_score = serializers.IntegerField()
+    low_priority = serializers.BooleanField()
+    dedupe_hash = serializers.CharField(allow_null=True)
     tags_json = serializers.DictField()
 
 
@@ -78,5 +80,6 @@ class EventsSummarySerializer(serializers.Serializer):
     announcements_negative_impact_sum_7d = serializers.IntegerField()
     announcements_high_impact_7d_count = serializers.IntegerField()
     announcements_high_impact_24h_count = serializers.IntegerField()
-    latest_announcement = serializers.DictField(allow_null=True)
+    latest_high_impact = serializers.DictField(allow_null=True)
+    announcements_raw_7d = serializers.IntegerField()
     last_fetch_run = serializers.DictField(allow_null=True)

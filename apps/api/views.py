@@ -136,11 +136,11 @@ def dashboard(request):
     now_ist = _ist_now()
     announcements_7d_since = now_ist - timedelta(days=7)
     announcements_24h_since = now_ist - timedelta(hours=24)
-    announcements_7d_qs = Announcement.objects.filter(published_at__gte=announcements_7d_since, impact_score__gte=10)
-    announcements_24h_qs = Announcement.objects.filter(published_at__gte=announcements_24h_since, impact_score__gte=10)
-    announcements_count = announcements_7d_qs.count()
-    announcements_24h_count = announcements_24h_qs.count()
-    latest_announcement = Announcement.objects.order_by('-published_at').first()
+    announcements_raw_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
+    high_impact_7d = announcements_raw_7d.filter(impact_score__gte=10, low_priority=False)
+    high_impact_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since, impact_score__gte=10, low_priority=False)
+
+    latest_high_impact = high_impact_7d.order_by('-published_at').first()
     last_events_run = EventsFetchRun.objects.first()
 
     return render(
@@ -160,9 +160,9 @@ def dashboard(request):
             'market_tz': settings.JSLL_MARKET_TZ,
             'news_24h_count': news_count,
             'news_24h_sentiment_avg': news_sentiment_avg,
-            'announcements_7d_count': announcements_count,
-            'announcements_24h_count': announcements_24h_count,
-            'latest_announcement': latest_announcement,
+            'announcements_7d_count': high_impact_7d.count(),
+            'announcements_24h_count': high_impact_24h.count(),
+            'latest_high_impact': latest_high_impact,
             'events_last_run': last_events_run,
         },
     )
@@ -314,6 +314,8 @@ class AnnouncementsView(APIView):
                 'type': item.type,
                 'polarity': item.polarity,
                 'impact_score': item.impact_score,
+                'low_priority': item.low_priority,
+                'dedupe_hash': item.dedupe_hash,
                 'tags_json': item.tags_json,
             }
             for item in items
@@ -337,37 +339,36 @@ class EventsSummaryView(APIView):
         announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
         announcements_last_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since)
 
-        high_impact_7d = announcements_last_7d.filter(impact_score__gte=10)
-        high_impact_24h = announcements_last_24h.filter(impact_score__gte=10)
+        high_impact_7d = announcements_last_7d.filter(impact_score__gte=10, low_priority=False)
+        high_impact_24h = announcements_last_24h.filter(impact_score__gte=10, low_priority=False)
 
-        announcements_count = high_impact_7d.count()
-        announcements_24h_count = high_impact_24h.count()
         impact_sum_24h = announcements_last_24h.aggregate(total=Sum('impact_score'))['total'] or 0
         impact_sum_7d = announcements_last_7d.aggregate(total=Sum('impact_score'))['total'] or 0
         negative_impact_7d = announcements_last_7d.filter(impact_score__lt=0).aggregate(total=Sum('impact_score'))['total'] or 0
 
-        latest_announcement = Announcement.objects.order_by('-published_at').first()
+        latest_high_impact = high_impact_7d.order_by('-published_at').first()
         last_fetch_run = EventsFetchRun.objects.first()
 
         return Response(
             {
                 'news_last_24h_count': news_count,
                 'news_last_24h_sentiment_avg': news_sentiment_avg,
-                'announcements_last_7d_count': announcements_count,
-                'announcements_last_24h_count': announcements_24h_count,
+                'announcements_last_7d_count': high_impact_7d.count(),
+                'announcements_last_24h_count': high_impact_24h.count(),
                 'announcements_impact_sum_24h': impact_sum_24h,
                 'announcements_impact_sum_7d': impact_sum_7d,
                 'announcements_negative_impact_sum_7d': negative_impact_7d,
                 'announcements_high_impact_7d_count': high_impact_7d.count(),
                 'announcements_high_impact_24h_count': high_impact_24h.count(),
-                'latest_announcement': {
-                    'published_at': latest_announcement.published_at,
-                    'headline': latest_announcement.headline,
-                    'url': latest_announcement.url,
-                    'type': latest_announcement.type,
-                    'polarity': latest_announcement.polarity,
-                    'impact_score': latest_announcement.impact_score,
-                } if latest_announcement else None,
+                'latest_high_impact': {
+                    'published_at': latest_high_impact.published_at,
+                    'headline': latest_high_impact.headline,
+                    'url': latest_high_impact.url,
+                    'type': latest_high_impact.type,
+                    'polarity': latest_high_impact.polarity,
+                    'impact_score': latest_high_impact.impact_score,
+                } if latest_high_impact else None,
+                'announcements_raw_7d': announcements_last_7d.count(),
                 'last_fetch_run': _serialize_events_run(last_fetch_run),
             }
         )

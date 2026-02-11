@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from django.core.management import call_command
 from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
@@ -61,30 +62,36 @@ class MarketTimeTests(TestCase):
 
 class TaxonomyTests(TestCase):
     def test_classify_dividend(self):
-        typ, polarity, impact_score, tags = classify_announcement('Dividend declared for Q4')
-        self.assertEqual(typ, 'dividend')
-        self.assertEqual(polarity, 1)
-        self.assertGreater(impact_score, 0)
+        result = classify_announcement('Dividend declared for Q4')
+        self.assertEqual(result['type'], 'dividend')
+        self.assertEqual(result['polarity'], 1)
+        self.assertGreater(result['impact_score'], 0)
 
     def test_classify_legal(self):
-        typ, polarity, impact_score, tags = classify_announcement('Company receives penalty notice')
-        self.assertEqual(typ, 'legal')
-        self.assertEqual(polarity, -1)
-        self.assertLess(impact_score, 0)
+        result = classify_announcement('Company receives penalty notice')
+        self.assertEqual(result['type'], 'legal')
+        self.assertEqual(result['polarity'], -1)
+        self.assertLess(result['impact_score'], 0)
 
     def test_classify_board_meeting(self):
-        typ, polarity, impact_score, tags = classify_announcement('Outcome of Board Meeting')
-        self.assertEqual(typ, 'board_meeting')
+        result = classify_announcement('Outcome of Board Meeting')
+        self.assertEqual(result['type'], 'board_meeting')
 
     def test_classify_results_strength(self):
-        typ, polarity, impact_score, tags = classify_announcement('Unaudited Financial Results Q3')
-        self.assertEqual(typ, 'results')
-        self.assertGreaterEqual(impact_score, 50)
+        result = classify_announcement('Outcome of Board Meeting - Unaudited Financial Results Q3')
+        self.assertEqual(result['type'], 'results')
+        self.assertGreaterEqual(result['impact_score'], 50)
+
+    def test_classify_insider(self):
+        result = classify_announcement('Insider Trading - Others')
+        self.assertEqual(result['type'], 'insider')
+        self.assertTrue(result['low_priority'])
+        self.assertLessEqual(result['impact_score'], 5)
 
     def test_classify_compliance(self):
-        typ, polarity, impact_score, tags = classify_announcement('Copy of Newspaper Publication')
-        self.assertEqual(typ, 'compliance')
-        self.assertLess(impact_score, 10)
+        result = classify_announcement('Copy of Newspaper Publication')
+        self.assertEqual(result['type'], 'compliance')
+        self.assertLess(result['impact_score'], 10)
 
 
 class AnnouncementTests(TestCase):
@@ -95,16 +102,19 @@ class AnnouncementTests(TestCase):
             published_at=now - timedelta(days=2),
             headline='Recent announcement',
             impact_score=20,
+            low_priority=False,
         )
         Announcement.objects.create(
             published_at=now - timedelta(days=2),
             headline='Low impact announcement',
             impact_score=5,
+            low_priority=True,
         )
         Announcement.objects.create(
             published_at=now - timedelta(days=10),
             headline='Old announcement',
             impact_score=20,
+            low_priority=False,
         )
         response = self.client.get('/api/v1/jsll/events/summary')
         self.assertEqual(response.status_code, 200)
@@ -123,6 +133,16 @@ class AnnouncementTests(TestCase):
                 published_at=now,
                 headline='Duplicate announcement',
             )
+
+    def test_reclassify_command_sets_low_priority(self):
+        Announcement.objects.create(
+            published_at=timezone.now(),
+            headline='Insider Trading - Others',
+        )
+        call_command('reclassify_announcements')
+        ann = Announcement.objects.get()
+        self.assertTrue(ann.low_priority)
+        self.assertLessEqual(ann.impact_score, 5)
 
 
 class IngestionTests(TestCase):
@@ -249,13 +269,15 @@ class EventsApiTests(APITestCase):
     def test_events_summary(self):
         Announcement.objects.create(
             published_at=timezone.now(),
-            headline='Announcement one',
+            headline='High impact announcement',
             impact_score=20,
+            low_priority=False,
         )
         Announcement.objects.create(
             published_at=timezone.now(),
             headline='Low impact',
             impact_score=0,
+            low_priority=True,
         )
         EventsFetchRun.objects.create(news_ok=True, announcements_ok=True)
         response = self.client.get('/api/v1/jsll/events/summary')
@@ -269,8 +291,9 @@ class EventsApiTests(APITestCase):
         self.assertIn('announcements_impact_sum_24h', payload)
         self.assertIn('announcements_impact_sum_7d', payload)
         self.assertIn('announcements_negative_impact_sum_7d', payload)
-        self.assertIn('latest_announcement', payload)
+        self.assertIn('latest_high_impact', payload)
         self.assertIn('last_fetch_run', payload)
+        self.assertEqual(payload['latest_high_impact']['headline'], 'High impact announcement')
 
     def test_openapi_docs(self):
         self.assertEqual(self.client.get('/api/schema/').status_code, 200)

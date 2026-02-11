@@ -201,9 +201,9 @@
                 <div class="value" id="announcements-count">{{ announcements_7d_count }}</div>
                 <div class="subtext" id="announcements-24h">Last 24h: {{ announcements_24h_count }}</div>
                 <div class="note">Latest:</div>
-                <div class="event-headline" id="announcement-headline">{% if latest_announcement %}{{ latest_announcement.headline }}{% else %}No data{% endif %}</div>
-                <div class="note" id="announcement-time">{% if latest_announcement %}{{ latest_announcement.published_at }}{% else %}--{% endif %}</div>
-                <div class="note"><span class="pill impact" id="announcement-impact">Impact: {% if latest_announcement %}{{ latest_announcement.impact_score }}{% else %}0{% endif %}</span></div>
+                <div class="event-headline" id="announcement-headline">{% if latest_high_impact %}{{ latest_high_impact.headline }}{% else %}No high-impact announcements{% endif %}</div>
+                <div class="note" id="announcement-time">{% if latest_high_impact %}{{ latest_high_impact.published_at }}{% else %}--{% endif %}</div>
+                <div class="note"><span class="pill impact" id="announcement-impact">Impact: {% if latest_high_impact %}{{ latest_high_impact.impact_score }}{% else %}0{% endif %}</span></div>
             </div>
             <div class="card">
                 <h2>Events Fetch</h2>
@@ -363,9 +363,9 @@
                 newsSentimentBadge.className = `pill ${badge.className}`;
                 announcementsCountEl.textContent = data.announcements_high_impact_7d_count;
                 announcements24hEl.textContent = `Last 24h: ${data.announcements_high_impact_24h_count}`;
-                announcementHeadlineEl.textContent = data.latest_announcement ? data.latest_announcement.headline : 'No data';
-                announcementTimeEl.textContent = data.latest_announcement ? formatIst(data.latest_announcement.published_at) : '--';
-                announcementImpactEl.textContent = `Impact: ${data.latest_announcement ? data.latest_announcement.impact_score : 0}`;
+                announcementHeadlineEl.textContent = data.latest_high_impact ? data.latest_high_impact.headline : 'No high-impact announcements';
+                announcementTimeEl.textContent = data.latest_high_impact ? formatIst(data.latest_high_impact.published_at) : '--';
+                announcementImpactEl.textContent = `Impact: ${data.latest_high_impact ? data.latest_high_impact.impact_score : 0}`;
                 eventsStatusEl.textContent = data.last_fetch_run && (data.last_fetch_run.news_ok || data.last_fetch_run.announcements_ok) ? 'OK' : 'DEGRADED';
                 eventsLastRunEl.textContent = data.last_fetch_run ? `Last run: ${data.last_fetch_run.started_at}` : 'No runs yet';
             } catch (err) {

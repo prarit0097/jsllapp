@@ -25,6 +25,8 @@ class Announcement(models.Model):
     type = models.CharField(max_length=50, default='other')
     polarity = models.IntegerField(default=0)
     impact_score = models.IntegerField(default=0)
+    low_priority = models.BooleanField(default=False)
+    dedupe_hash = models.CharField(max_length=32, blank=True, null=True, db_index=True)
     tags_json = models.JSONField(default=dict, blank=True)
 
     class Meta:

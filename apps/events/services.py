@@ -6,7 +6,7 @@ from .models import Announcement, NewsItem
 from .nse import fetch_nse_announcements
 from .rss import fetch_feeds
 from .sentiment import score_sentiment
-from .taxonomy import classify_announcement, tag_news
+from .taxonomy import classify_announcement, compute_dedupe_hash, tag_news
 
 
 def _ensure_ist(dt):
@@ -66,20 +66,28 @@ def fetch_announcements_nse(symbol='JSLL'):
         key = (item['headline'], published_at)
         if key in existing:
             continue
-        typ, polarity, impact_score, tags = classify_announcement(item['headline'])
+
+        classification = classify_announcement(item['headline'])
+        typ = classification['type']
+        impact_score = classification['impact_score']
+        low_priority = classification['low_priority']
+
         if typ == 'results' and published_at.date() in existing_results_days:
-            continue
-        if impact_score < 10:
-            tags['low_priority'] = True
+            low_priority = True
+
+        dedupe_hash = compute_dedupe_hash(item['headline'], published_at, typ)
+
         to_create.append(
             Announcement(
                 published_at=published_at,
                 headline=item['headline'][:500],
                 url=item['url'],
                 type=typ,
-                polarity=polarity,
+                polarity=classification['polarity'],
                 impact_score=impact_score,
-                tags_json=tags,
+                low_priority=low_priority,
+                dedupe_hash=dedupe_hash,
+                tags_json={'tags': classification['tags']},
             )
         )
         if typ == 'results':
@@ -90,13 +98,15 @@ def fetch_announcements_nse(symbol='JSLL'):
 
 
 def create_announcement_from_text(headline, published_at, url=''):
-    typ, polarity, impact_score, tags = classify_announcement(headline)
+    classification = classify_announcement(headline)
     return Announcement.objects.create(
         published_at=_ensure_ist(published_at),
         headline=headline[:500],
         url=url,
-        type=typ,
-        polarity=polarity,
-        impact_score=impact_score,
-        tags_json=tags,
+        type=classification['type'],
+        polarity=classification['polarity'],
+        impact_score=classification['impact_score'],
+        low_priority=classification['low_priority'],
+        dedupe_hash=compute_dedupe_hash(headline, published_at, classification['type']),
+        tags_json={'tags': classification['tags']},
     )
