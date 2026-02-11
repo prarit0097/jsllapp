@@ -4,10 +4,16 @@ A minimal Django + Django REST Framework service for JSLL analytics and predicti
 
 ## Setup
 1. Create and activate a virtual environment.
+
+```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
 1. Install dependencies.
 
 ```bash
-python -m pip install django djangorestframework python-dotenv dj-database-url celery
+python -m pip install -r requirements.txt
 ```
 
 1. Create a `.env` file (optional) based on `.env.example`.

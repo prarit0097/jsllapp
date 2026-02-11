@@ -1,5 +1,8 @@
 from rest_framework.test import APITestCase
 
+from apps.market.providers.mock_provider import MockPriceProvider
+from apps.market.services import ingest_1m_candles
+
 
 class HealthEndpointTests(APITestCase):
     def test_health_endpoint(self):
@@ -16,3 +19,19 @@ class MetaEndpointTests(APITestCase):
             response.json(),
             {'app': 'JSLL Decision Intelligence', 'version': '0.1.0'},
         )
+
+
+class QuoteEndpointTests(APITestCase):
+    def test_latest_quote_returns_200(self):
+        ingest_1m_candles(MockPriceProvider())
+        response = self.client.get('/api/v1/jsll/quote/latest')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'ok')
+
+
+class OhlcEndpointTests(APITestCase):
+    def test_ohlc_endpoint_returns_data(self):
+        ingest_1m_candles(MockPriceProvider())
+        response = self.client.get('/api/v1/jsll/ohlc/1m?limit=5')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(len(response.json()) > 0)

@@ -1,8 +1,10 @@
 from django.urls import path
 
-from .views import HealthView, MetaView
+from .views import HealthView, LatestQuoteView, MetaView, Ohlc1mView
 
 urlpatterns = [
     path('health', HealthView.as_view(), name='health'),
     path('meta', MetaView.as_view(), name='meta'),
+    path('jsll/ohlc/1m', Ohlc1mView.as_view(), name='ohlc-1m'),
+    path('jsll/quote/latest', LatestQuoteView.as_view(), name='quote-latest'),
 ]

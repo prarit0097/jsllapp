@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JSLL Dashboard</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 2rem;
+            color: #111827;
+            background: #f9fafb;
+        }
+        .card {
+            background: #ffffff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1.5rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            color: #6b7280;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSLL Dashboard</h1>
+
+    <div class="card">
+        <h2>Latest Price</h2>
+        {% if latest %}
+            <p><strong>{{ latest.close }}</strong></p>
+            <p>Last candle time: {{ latest.ts }}</p>
+        {% else %}
+            <p>No data yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Last 10 Candles</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Volume</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for candle in recent %}
+                <tr>
+                    <td>{{ candle.ts }}</td>
+                    <td>{{ candle.open }}</td>
+                    <td>{{ candle.high }}</td>
+                    <td>{{ candle.low }}</td>
+                    <td>{{ candle.close }}</td>
+                    <td>{{ candle.volume }}</td>
+                    <td>{{ candle.source }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">No candles yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
