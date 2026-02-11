@@ -138,7 +138,11 @@ def dashboard(request):
     announcements_24h_since = now_ist - timedelta(hours=24)
     announcements_raw_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
     high_impact_7d = announcements_raw_7d.filter(impact_score__gte=10, low_priority=False)
-    high_impact_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since, impact_score__gte=10, low_priority=False)
+    high_impact_24h = Announcement.objects.filter(
+        published_at__gte=announcements_24h_since,
+        impact_score__gte=10,
+        low_priority=False,
+    )
 
     latest_high_impact = high_impact_7d.order_by('-published_at').first()
     last_events_run = EventsFetchRun.objects.first()
@@ -349,6 +353,18 @@ class EventsSummaryView(APIView):
         latest_high_impact = high_impact_7d.order_by('-published_at').first()
         last_fetch_run = EventsFetchRun.objects.first()
 
+        latest_payload = None
+        if latest_high_impact:
+            latest_payload = {
+                'published_at': latest_high_impact.published_at,
+                'published_at_ist': _format_market_time(latest_high_impact.published_at),
+                'headline': latest_high_impact.headline,
+                'url': latest_high_impact.url,
+                'type': latest_high_impact.type,
+                'polarity': latest_high_impact.polarity,
+                'impact_score': latest_high_impact.impact_score,
+            }
+
         return Response(
             {
                 'news_last_24h_count': news_count,
@@ -360,14 +376,7 @@ class EventsSummaryView(APIView):
                 'announcements_negative_impact_sum_7d': negative_impact_7d,
                 'announcements_high_impact_7d_count': high_impact_7d.count(),
                 'announcements_high_impact_24h_count': high_impact_24h.count(),
-                'latest_high_impact': {
-                    'published_at': latest_high_impact.published_at,
-                    'headline': latest_high_impact.headline,
-                    'url': latest_high_impact.url,
-                    'type': latest_high_impact.type,
-                    'polarity': latest_high_impact.polarity,
-                    'impact_score': latest_high_impact.impact_score,
-                } if latest_high_impact else None,
+                'latest_high_impact': latest_payload,
                 'announcements_raw_7d': announcements_last_7d.count(),
                 'last_fetch_run': _serialize_events_run(last_fetch_run),
             }

@@ -76,11 +76,12 @@ class TaxonomyTests(TestCase):
     def test_classify_board_meeting(self):
         result = classify_announcement('Outcome of Board Meeting')
         self.assertEqual(result['type'], 'board_meeting')
+        self.assertGreaterEqual(result['impact_score'], 25)
 
     def test_classify_results_strength(self):
         result = classify_announcement('Outcome of Board Meeting - Unaudited Financial Results Q3')
         self.assertEqual(result['type'], 'results')
-        self.assertGreaterEqual(result['impact_score'], 50)
+        self.assertGreaterEqual(result['impact_score'], 60)
 
     def test_classify_insider(self):
         result = classify_announcement('Insider Trading - Others')
@@ -294,6 +295,7 @@ class EventsApiTests(APITestCase):
         self.assertIn('latest_high_impact', payload)
         self.assertIn('last_fetch_run', payload)
         self.assertEqual(payload['latest_high_impact']['headline'], 'High impact announcement')
+        self.assertIn('published_at_ist', payload['latest_high_impact'])
 
     def test_openapi_docs(self):
         self.assertEqual(self.client.get('/api/schema/').status_code, 200)
