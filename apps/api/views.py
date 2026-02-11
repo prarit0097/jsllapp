@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.shortcuts import render
 from django.utils import timezone
 from rest_framework.response import Response
@@ -48,6 +49,8 @@ def dashboard(request):
             'last_candle_time': last_candle_time,
             'candles_last_60m': candles_last_60m,
             'data_ok': data_ok,
+            'ticker': settings.JSLL_TICKER,
+            'market_tz': settings.JSLL_MARKET_TZ,
         },
     )
 
@@ -91,6 +94,8 @@ class LatestQuoteView(APIView):
                     'last_price': None,
                     'last_candle_time': None,
                     'status': 'no_data',
+                    'ticker': settings.JSLL_TICKER,
+                    'market_tz': settings.JSLL_MARKET_TZ,
                 }
             )
         return Response(
@@ -98,6 +103,8 @@ class LatestQuoteView(APIView):
                 'last_price': latest.close,
                 'last_candle_time': latest.ts,
                 'status': 'ok',
+                'ticker': settings.JSLL_TICKER,
+                'market_tz': settings.JSLL_MARKET_TZ,
             }
         )
 
@@ -117,5 +124,7 @@ class PipelineStatusView(APIView):
                 'last_candle_time': last_candle_time,
                 'candles_last_60m': candles_last_60m,
                 'data_ok': data_ok,
+                'ticker': settings.JSLL_TICKER,
+                'market_tz': settings.JSLL_MARKET_TZ,
             }
         )

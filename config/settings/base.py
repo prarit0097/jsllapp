@@ -18,6 +18,9 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+JSLL_TICKER = os.getenv('JSLL_TICKER', 'JSLL.BO')
+JSLL_MARKET_TZ = os.getenv('JSLL_MARKET_TZ', 'Asia/Kolkata')
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

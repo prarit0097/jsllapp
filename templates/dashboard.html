@@ -100,6 +100,14 @@
             border-radius: 8px;
             font-size: 0.9rem;
         }
+        .pill {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            background: #e2e8f0;
+            font-size: 0.8rem;
+            margin-left: 0.4rem;
+        }
     </style>
 </head>
 <body>
@@ -115,6 +123,10 @@
         </header>
 
         <div class="grid">
+            <div class="card">
+                <h2>Ticker</h2>
+                <div class="value">{{ ticker }} <span class="pill">{{ market_tz }}</span></div>
+            </div>
             <div class="card">
                 <h2>Last Price</h2>
                 <div class="value">{% if latest %}{{ latest.close }}{% else %}--{% endif %}</div>
