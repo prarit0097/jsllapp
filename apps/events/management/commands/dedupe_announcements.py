@@ -14,20 +14,25 @@ class Command(BaseCommand):
         by_hash = defaultdict(list)
 
         for ann in Announcement.objects.all().iterator():
-            ann.dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
-            ann.save(update_fields=['dedupe_hash'])
-            by_hash[ann.dedupe_hash].append(ann)
+            dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+            by_hash[dedupe_hash].append(ann)
 
-        deleted = 0
+        to_delete = []
+        to_keep = []
         for items in by_hash.values():
-            if len(items) <= 1:
-                continue
             items_sorted = sorted(items, key=lambda x: (x.impact_score, x.published_at), reverse=True)
-            to_delete = items_sorted[1:]
-            Announcement.objects.filter(id__in=[a.id for a in to_delete]).delete()
-            deleted += len(to_delete)
+            to_keep.append((items_sorted[0].id, items_sorted[0]))
+            to_delete.extend([item.id for item in items_sorted[1:]])
+
+        if to_delete:
+            Announcement.objects.filter(id__in=to_delete).delete()
+
+        for ann_id, ann in to_keep:
+            dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+            Announcement.objects.filter(id=ann_id).update(dedupe_hash=dedupe_hash)
 
         total_after = Announcement.objects.count()
+        deleted = total_before - total_after
         self.stdout.write(f"Before: {total_before}")
         self.stdout.write(f"Deleted: {deleted}")
         self.stdout.write(f"After: {total_after}")

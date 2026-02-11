@@ -46,10 +46,9 @@ def fetch_news_rss():
 
 def _load_existing_hashes(since):
     existing_hashes = set()
-    qs = Announcement.objects.filter(published_at__gte=since).only('headline', 'published_at', 'url', 'dedupe_hash')
+    qs = Announcement.objects.filter(published_at__gte=since).only('headline', 'published_at', 'url')
     for ann in qs.iterator():
-        dedupe_hash = ann.dedupe_hash or compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
-        existing_hashes.add(dedupe_hash)
+        existing_hashes.add(compute_dedupe_hash(ann.headline, ann.published_at, ann.url))
     return existing_hashes
 
 
