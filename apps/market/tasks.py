@@ -26,12 +26,14 @@ def ingest_1m_task():
             logger.info('Market closed. Skipping ingestion.')
             return 'market_closed'
 
-        from apps.market.providers.stooq_provider import StooqProvider
-        from apps.market.providers.yfinance_provider import YFinanceProvider
+        from apps.market.providers.yfinance_download_provider import (
+            YFinanceDownloadProvider,
+        )
+        from apps.market.providers.yfinance_provider import YFinanceHistoryProvider
         from apps.market.services import ingest_1m_candles_multi
 
-        primary = YFinanceProvider()
-        fallback = StooqProvider()
+        primary = YFinanceHistoryProvider()
+        fallback = YFinanceDownloadProvider()
         run = ingest_1m_candles_multi(primary, fallback)
         logger.info(
             'Ingest summary primary_ok=%s fallback_ok=%s saved=%s missing=%s outliers=%s',

@@ -30,7 +30,34 @@ def _filter_market_session(data, start_time, end_time):
     return data.loc[mask]
 
 
-class YFinanceProvider(BasePriceProvider):
+def _normalize_candles(data, symbol, source):
+    market_tz = ZoneInfo(settings.JSLL_MARKET_TZ)
+    data = _ensure_market_tz_index(data, market_tz)
+    data = _filter_market_session(data, time(9, 15), time(15, 30))
+
+    if data.empty:
+        raise ProviderError(f"no candles in market session for {symbol}")
+
+    candles = []
+    for idx, row in data.iterrows():
+        ts = idx.to_pydatetime()
+        candles.append(
+            {
+                'ts': ts,
+                'open': _to_float(row['Open']),
+                'high': _to_float(row['High']),
+                'low': _to_float(row['Low']),
+                'close': _to_float(row['Close']),
+                'volume': _to_float(row['Volume']),
+                'source': source,
+            }
+        )
+
+    candles.sort(key=lambda c: c['ts'])
+    return candles
+
+
+class YFinanceHistoryProvider(BasePriceProvider):
     def __init__(self, symbol=None):
         self.symbol = symbol or settings.JSLL_TICKER
 
@@ -45,34 +72,9 @@ class YFinanceProvider(BasePriceProvider):
                 prepost=False,
             )
         except Exception as exc:
-            raise ProviderError(f"yfinance failed: {exc}")
+            raise ProviderError(f"yfinance history failed: {exc}")
 
         if data is None or data.empty:
-            raise ProviderError('yfinance returned empty data')
+            raise ProviderError('yfinance history returned empty data')
 
-        market_tz = ZoneInfo(settings.JSLL_MARKET_TZ)
-        data = _ensure_market_tz_index(data, market_tz)
-        data = _filter_market_session(data, time(9, 15), time(15, 30))
-
-        if data.empty:
-            raise ProviderError(
-                f"no candles in market session for {self.symbol}"
-            )
-
-        candles = []
-        for idx, row in data.iterrows():
-            ts = idx.to_pydatetime()
-            candles.append(
-                {
-                    'ts': ts,
-                    'open': _to_float(row['Open']),
-                    'high': _to_float(row['High']),
-                    'low': _to_float(row['Low']),
-                    'close': _to_float(row['Close']),
-                    'volume': _to_float(row['Volume']),
-                    'source': 'primary',
-                }
-            )
-
-        candles.sort(key=lambda c: c['ts'])
-        return candles
+        return _normalize_candles(data, self.symbol, 'primary')

@@ -16,6 +16,20 @@ JSLL Decision Intelligence is a Django + Django REST Framework service that expo
 ## Observability
 - Console logging via Django logging configuration in `config/settings/base.py`.
 
+## Celery (Windows)
+1. Ensure Redis is running on `localhost:6379`.
+1. Start worker:
+
+```powershell
+.\.venv\Scripts\celery -A config worker -l info
+```
+
+1. Start beat:
+
+```powershell
+.\.venv\Scripts\celery -A config beat -l info
+```
+
 ## Next Steps (Phase 1)
 - Define models per domain app.
 - Add API resources and serializers.

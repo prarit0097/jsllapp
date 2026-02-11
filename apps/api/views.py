@@ -38,6 +38,17 @@ def _format_market_time(dt):
     return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
 
 
+def _freshness(latest):
+    now_server = timezone.now().astimezone(timezone.get_current_timezone())
+    seconds_since = None
+    if latest:
+        seconds_since = int((now_server - latest.ts).total_seconds())
+    status = 'degraded'
+    if latest and (seconds_since is None or seconds_since <= 120):
+        status = 'ok'
+    return now_server, seconds_since, status
+
+
 def dashboard(request):
     latest = Ohlc1m.objects.order_by('-ts').first()
     recent = Ohlc1m.objects.order_by('-ts')[:20]
@@ -99,32 +110,27 @@ class Ohlc1mView(APIView):
 class LatestQuoteView(APIView):
     def get(self, request):
         latest = Ohlc1m.objects.order_by('-ts').first()
-        now_server = timezone.now().astimezone(timezone.get_current_timezone())
-        seconds_since = None
-        if latest:
-            seconds_since = int((now_server - latest.ts).total_seconds())
+        now_server, seconds_since, status = _freshness(latest)
         if latest is None:
             return Response(
                 {
+                    'ticker': settings.JSLL_TICKER,
                     'last_price': None,
                     'last_candle_time': None,
-                    'status': 'no_data',
-                    'ticker': settings.JSLL_TICKER,
-                    'market_tz': settings.JSLL_MARKET_TZ,
                     'now_server_time': now_server,
                     'seconds_since_last_candle': seconds_since,
+                    'status': 'degraded',
                     'last_candle_time_ist': None,
                 }
             )
         return Response(
             {
+                'ticker': settings.JSLL_TICKER,
                 'last_price': latest.close,
                 'last_candle_time': latest.ts,
-                'status': 'ok',
-                'ticker': settings.JSLL_TICKER,
-                'market_tz': settings.JSLL_MARKET_TZ,
                 'now_server_time': now_server,
                 'seconds_since_last_candle': seconds_since,
+                'status': status,
                 'last_candle_time_ist': _format_market_time(latest.ts),
             }
         )
@@ -137,15 +143,18 @@ class PipelineStatusView(APIView):
         last_candle_time = latest.ts if latest else None
         since = timezone.now() - timedelta(minutes=60)
         candles_last_60m = Ohlc1m.objects.filter(ts__gte=since).count()
-        data_ok = bool(last_run and (last_run.primary_ok or last_run.fallback_ok) and candles_last_60m > 0)
+        now_server, seconds_since, status = _freshness(latest)
 
         return Response(
             {
                 'last_run': _serialize_run(last_run),
                 'last_candle_time': last_candle_time,
                 'candles_last_60m': candles_last_60m,
-                'data_ok': data_ok,
+                'data_ok': bool(status == 'ok'),
                 'ticker': settings.JSLL_TICKER,
                 'market_tz': settings.JSLL_MARKET_TZ,
+                'now_server_time': now_server,
+                'seconds_since_last_candle': seconds_since,
+                'status': status,
             }
         )

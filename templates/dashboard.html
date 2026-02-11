@@ -143,7 +143,7 @@
                 <div class="value">{{ ticker }} <span class="pill">{{ market_tz }}</span></div>
             </div>
             <div class="card">
-                <h2>Last Price</h2>
+                <h2>Last Price <span class="pill" id="live-pill">LIVE</span></h2>
                 <div class="value"><span class="live-dot" id="live-dot"></span><span id="last-price">{% if latest %}{{ latest.close }}{% else %}--{% endif %}</span></div>
                 <div class="note" id="freshness">Updated --</div>
             </div>
@@ -214,6 +214,7 @@
         const freshnessEl = document.getElementById('freshness');
         const pipelineEl = document.getElementById('pipeline-status');
         const liveDot = document.getElementById('live-dot');
+        const livePill = document.getElementById('live-pill');
         const candles60El = document.getElementById('candles-60');
         const ohlcBody = document.getElementById('ohlc-body');
 
@@ -227,11 +228,13 @@
             second: '2-digit',
         });
 
-        function setStatus(ok) {
+        function setStatus(status) {
+            const ok = status === 'ok';
             pipelineEl.textContent = ok ? 'OK' : 'DEGRADED';
             pipelineEl.classList.toggle('ok', ok);
             pipelineEl.classList.toggle('warn', !ok);
             liveDot.classList.toggle('off', !ok);
+            livePill.textContent = ok ? 'LIVE' : 'DELAYED';
         }
 
         function formatIst(isoString) {
@@ -241,9 +244,9 @@
             return istFormatter.format(date) + ' IST';
         }
 
-        function freshnessText(seconds) {
+        function freshnessText(seconds, status) {
             if (typeof seconds !== 'number') return 'Updated --';
-            if (seconds <= 90) return `Updated ${seconds} sec ago`;
+            if (status === 'ok') return `Updated ${seconds} sec ago`;
             return `Updated ${seconds} sec ago (market data delayed)`;
         }
 
@@ -260,11 +263,10 @@
                 } else if (data.last_candle_time) {
                     lastCandleEl.textContent = formatIst(data.last_candle_time);
                 }
-                freshnessEl.textContent = freshnessText(data.seconds_since_last_candle);
-                const ok = data.status === 'ok' && (data.seconds_since_last_candle === null || data.seconds_since_last_candle <= 120);
-                setStatus(ok);
+                freshnessEl.textContent = freshnessText(data.seconds_since_last_candle, data.status);
+                setStatus(data.status);
             } catch (err) {
-                setStatus(false);
+                setStatus('degraded');
             }
         }
 
@@ -288,7 +290,7 @@
                 )).join('');
                 candles60El.textContent = data.length;
             } catch (err) {
-                setStatus(false);
+                setStatus('degraded');
             }
         }
 

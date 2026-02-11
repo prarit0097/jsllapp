@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from apps.market.providers.stooq_provider import StooqProvider
-from apps.market.providers.yfinance_provider import YFinanceProvider
+from apps.market.providers.yfinance_download_provider import YFinanceDownloadProvider
+from apps.market.providers.yfinance_provider import YFinanceHistoryProvider
 from apps.market.services import ingest_1m_candles_multi
 
 
@@ -9,8 +9,8 @@ class Command(BaseCommand):
     help = 'Ingest 1m candles using primary and fallback providers.'
 
     def handle(self, *args, **options):
-        primary = YFinanceProvider()
-        fallback = StooqProvider()
+        primary = YFinanceHistoryProvider()
+        fallback = YFinanceDownloadProvider()
 
         run = ingest_1m_candles_multi(primary, fallback)
 

@@ -29,7 +29,6 @@ class QuoteEndpointTests(APITestCase):
         payload = response.json()
         self.assertEqual(payload['status'], 'ok')
         self.assertIn('ticker', payload)
-        self.assertIn('market_tz', payload)
         self.assertIn('now_server_time', payload)
         self.assertIn('seconds_since_last_candle', payload)
 
@@ -53,4 +52,5 @@ class PipelineStatusTests(APITestCase):
         self.assertIn('candles_last_60m', payload)
         self.assertIn('data_ok', payload)
         self.assertIn('ticker', payload)
-        self.assertIn('market_tz', payload)
+        self.assertIn('now_server_time', payload)
+        self.assertIn('seconds_since_last_candle', payload)

@@ -19,6 +19,12 @@ python -m pip install -r requirements.txt
 1. Create a `.env` file (optional) based on `.env.example`.
 
 ## Run
+### One-command dev (Redis + Celery + Django)
+```powershell
+.\scripts\run_dev.ps1
+```
+
+### Manual
 ```bash
 python manage.py migrate
 python manage.py runserver
