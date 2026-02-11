@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 from django.utils import timezone
 
 from .models import Announcement, NewsItem
@@ -5,6 +7,14 @@ from .nse import fetch_nse_announcements
 from .rss import fetch_feeds
 from .sentiment import score_sentiment
 from .taxonomy import classify_announcement, tag_news
+
+
+def _ensure_ist(dt):
+    if not dt:
+        return timezone.now().astimezone(ZoneInfo('Asia/Kolkata'))
+    if timezone.is_naive(dt):
+        return dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
+    return dt.astimezone(ZoneInfo('Asia/Kolkata'))
 
 
 def fetch_news_rss():
@@ -46,7 +56,7 @@ def fetch_announcements_nse(symbol='JSLL'):
 
     to_create = []
     for item in items:
-        published_at = item['published_at'] or timezone.now()
+        published_at = _ensure_ist(item['published_at'])
         key = (item['headline'], published_at)
         if key in existing:
             continue
@@ -70,7 +80,7 @@ def fetch_announcements_nse(symbol='JSLL'):
 def create_announcement_from_text(headline, published_at, url=''):
     typ, polarity, impact_score, tags = classify_announcement(headline)
     return Announcement.objects.create(
-        published_at=published_at,
+        published_at=_ensure_ist(published_at),
         headline=headline[:500],
         url=url,
         type=typ,

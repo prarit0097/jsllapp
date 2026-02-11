@@ -2,7 +2,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Avg
+from django.db.models import Avg, Sum
 from django.shortcuts import render
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
@@ -111,6 +111,10 @@ def _pipeline_status(latest, candles_last_60m):
     }
 
 
+def _ist_now():
+    return timezone.now().astimezone(ZoneInfo(settings.JSLL_MARKET_TZ))
+
+
 def dashboard(request):
     latest = Ohlc1m.objects.order_by('-ts').first()
     recent = Ohlc1m.objects.order_by('-ts')[:20]
@@ -128,8 +132,14 @@ def dashboard(request):
     news_sentiment_avg = NewsItem.objects.filter(published_at__gte=news_24h_since).aggregate(
         avg=Avg('sentiment')
     )['avg']
-    announcements_7d_since = timezone.now() - timedelta(days=7)
-    announcements_count = Announcement.objects.filter(published_at__gte=announcements_7d_since).count()
+
+    now_ist = _ist_now()
+    announcements_7d_since = now_ist - timedelta(days=7)
+    announcements_24h_since = now_ist - timedelta(hours=24)
+    announcements_7d_qs = Announcement.objects.filter(published_at__gte=announcements_7d_since)
+    announcements_24h_qs = Announcement.objects.filter(published_at__gte=announcements_24h_since)
+    announcements_count = announcements_7d_qs.count()
+    announcements_24h_count = announcements_24h_qs.count()
     latest_announcement = Announcement.objects.order_by('-published_at').first()
     last_events_run = EventsFetchRun.objects.first()
 
@@ -151,6 +161,7 @@ def dashboard(request):
             'news_24h_count': news_count,
             'news_24h_sentiment_avg': news_sentiment_avg,
             'announcements_7d_count': announcements_count,
+            'announcements_24h_count': announcements_24h_count,
             'latest_announcement': latest_announcement,
             'events_last_run': last_events_run,
         },
@@ -320,9 +331,18 @@ class EventsSummaryView(APIView):
         news_count = news_last_24h.count()
         news_sentiment_avg = news_last_24h.aggregate(avg=Avg('sentiment'))['avg'] or 0.0
 
-        announcements_7d_since = timezone.now() - timedelta(days=7)
+        now_ist = _ist_now()
+        announcements_7d_since = now_ist - timedelta(days=7)
+        announcements_24h_since = now_ist - timedelta(hours=24)
         announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
+        announcements_last_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since)
+
         announcements_count = announcements_last_7d.count()
+        announcements_24h_count = announcements_last_24h.count()
+        impact_sum_24h = announcements_last_24h.aggregate(total=Sum('impact_score'))['total'] or 0
+        impact_sum_7d = announcements_last_7d.aggregate(total=Sum('impact_score'))['total'] or 0
+        negative_impact_7d = announcements_last_7d.filter(impact_score__lt=0).aggregate(total=Sum('impact_score'))['total'] or 0
+
         latest_announcement = Announcement.objects.order_by('-published_at').first()
         last_fetch_run = EventsFetchRun.objects.first()
 
@@ -331,6 +351,10 @@ class EventsSummaryView(APIView):
                 'news_last_24h_count': news_count,
                 'news_last_24h_sentiment_avg': news_sentiment_avg,
                 'announcements_last_7d_count': announcements_count,
+                'announcements_last_24h_count': announcements_24h_count,
+                'announcements_impact_sum_24h': impact_sum_24h,
+                'announcements_impact_sum_7d': impact_sum_7d,
+                'announcements_negative_impact_sum_7d': negative_impact_7d,
                 'latest_announcement': {
                     'published_at': latest_announcement.published_at,
                     'headline': latest_announcement.headline,

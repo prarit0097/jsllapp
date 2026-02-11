@@ -29,6 +29,9 @@ class Announcement(models.Model):
 
     class Meta:
         ordering = ['-published_at']
+        constraints = [
+            models.UniqueConstraint(fields=['headline', 'published_at'], name='uniq_announcement_headline_time')
+        ]
 
     def __str__(self):
         return f"{self.published_at.isoformat()} {self.headline}"

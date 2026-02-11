@@ -137,6 +137,10 @@
             font-size: 0.95rem;
             font-weight: 600;
         }
+        .subtext {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -195,6 +199,7 @@
             <div class="card">
                 <h2>Announcements (last 7d)</h2>
                 <div class="value" id="announcements-count">{{ announcements_7d_count }}</div>
+                <div class="subtext" id="announcements-24h">Last 24h: {{ announcements_24h_count }}</div>
                 <div class="note">Latest:</div>
                 <div class="event-headline" id="announcement-headline">{% if latest_announcement %}{{ latest_announcement.headline }}{% else %}No data{% endif %}</div>
                 <div class="note" id="announcement-time">{% if latest_announcement %}{{ latest_announcement.published_at }}{% else %}--{% endif %}</div>
@@ -202,7 +207,7 @@
             </div>
             <div class="card">
                 <h2>Events Fetch</h2>
-                <div class="value" id="events-status">{% if events_last_run and events_last_run.news_ok %}OK{% else %}DEGRADED{% endif %}</div>
+                <div class="value" id="events-status">{% if events_last_run and (events_last_run.news_ok or events_last_run.announcements_ok) %}OK{% else %}DEGRADED{% endif %}</div>
                 <div class="note" id="events-last-run">{% if events_last_run %}Last run: {{ events_last_run.started_at }}{% else %}No runs yet{% endif %}</div>
             </div>
         </div>
@@ -256,6 +261,7 @@
         const newsSentimentEl = document.getElementById('news-sentiment');
         const newsSentimentBadge = document.getElementById('news-sentiment-badge');
         const announcementsCountEl = document.getElementById('announcements-count');
+        const announcements24hEl = document.getElementById('announcements-24h');
         const announcementHeadlineEl = document.getElementById('announcement-headline');
         const announcementTimeEl = document.getElementById('announcement-time');
         const announcementImpactEl = document.getElementById('announcement-impact');
@@ -350,6 +356,7 @@
                 newsSentimentBadge.textContent = badge.label;
                 newsSentimentBadge.className = `pill ${badge.className}`;
                 announcementsCountEl.textContent = data.announcements_last_7d_count;
+                announcements24hEl.textContent = `Last 24h: ${data.announcements_last_24h_count}`;
                 announcementHeadlineEl.textContent = data.latest_announcement ? data.latest_announcement.headline : 'No data';
                 announcementTimeEl.textContent = data.latest_announcement ? formatIst(data.latest_announcement.published_at) : '--';
                 announcementImpactEl.textContent = `Impact: ${data.latest_announcement ? data.latest_announcement.impact_score : 0}`;

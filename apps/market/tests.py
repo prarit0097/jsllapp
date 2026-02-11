@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -70,6 +71,41 @@ class TaxonomyTests(TestCase):
         self.assertEqual(typ, 'legal')
         self.assertEqual(polarity, -1)
         self.assertLess(impact_score, 0)
+
+    def test_classify_board_meeting(self):
+        typ, polarity, impact_score, tags = classify_announcement('Outcome of Board Meeting')
+        self.assertEqual(typ, 'board_meeting')
+
+
+class AnnouncementTests(TestCase):
+    def test_announcements_7d_count(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = timezone.now().astimezone(tz)
+        Announcement.objects.create(
+            published_at=now - timedelta(days=2),
+            headline='Recent announcement',
+        )
+        Announcement.objects.create(
+            published_at=now - timedelta(days=10),
+            headline='Old announcement',
+        )
+        response = self.client.get('/api/v1/jsll/events/summary')
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['announcements_last_7d_count'], 1)
+
+    def test_announcement_dedupe(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = timezone.now().astimezone(tz)
+        Announcement.objects.create(
+            published_at=now,
+            headline='Duplicate announcement',
+        )
+        with self.assertRaises(IntegrityError):
+            Announcement.objects.create(
+                published_at=now,
+                headline='Duplicate announcement',
+            )
 
 
 class IngestionTests(TestCase):
@@ -194,23 +230,21 @@ class EventsApiTests(APITestCase):
         self.assertTrue(len(response.json()) >= 1)
 
     def test_events_summary(self):
-        NewsItem.objects.create(
+        Announcement.objects.create(
             published_at=timezone.now(),
-            source='test',
-            title='Test news',
-            url='https://example.com/test-news-2',
-            summary='summary',
-            sentiment=0.3,
-            relevance=1.0,
-            entities_json={},
+            headline='Announcement one',
         )
-        EventsFetchRun.objects.create(news_ok=True, announcements_ok=False)
+        EventsFetchRun.objects.create(news_ok=True, announcements_ok=True)
         response = self.client.get('/api/v1/jsll/events/summary')
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn('news_last_24h_count', payload)
         self.assertIn('news_last_24h_sentiment_avg', payload)
         self.assertIn('announcements_last_7d_count', payload)
+        self.assertIn('announcements_last_24h_count', payload)
+        self.assertIn('announcements_impact_sum_24h', payload)
+        self.assertIn('announcements_impact_sum_7d', payload)
+        self.assertIn('announcements_negative_impact_sum_7d', payload)
         self.assertIn('latest_announcement', payload)
         self.assertIn('last_fetch_run', payload)
 
