@@ -46,7 +46,7 @@ def fetch_events_task(schedule_type='open'):
         errors = ann_result['errors']
 
         run.announcements_fetched = created
-        run.announcements_ok = (parsed > 0 or created > 0) and not errors
+        run.announcements_ok = (created + updated + skipped) > 0 and not errors
         if errors:
             notes.append(f"announcements_error: {','.join(errors)}")
         notes.append(

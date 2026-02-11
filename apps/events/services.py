@@ -1,6 +1,7 @@
 ﻿from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.db import IntegrityError
 from django.utils import timezone
 
 from .models import Announcement, NewsItem
@@ -122,10 +123,15 @@ def fetch_announcements_nse(symbol='JSLL'):
             'tags_json': {'tags': classification['tags']},
         }
 
-        obj, created = Announcement.objects.update_or_create(
-            dedupe_key=dedupe_key,
-            defaults=defaults,
-        )
+        try:
+            obj, created = Announcement.objects.update_or_create(
+                dedupe_key=dedupe_key,
+                defaults=defaults,
+            )
+        except IntegrityError:
+            skipped_duplicates += 1
+            continue
+
         if created:
             created_count += 1
         else:

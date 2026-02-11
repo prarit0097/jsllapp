@@ -196,6 +196,20 @@ class AnnouncementTests(TestCase):
         self.assertEqual(result['saved_count'], 0)
         self.assertEqual(Announcement.objects.count(), 1)
 
+    @patch('apps.events.services.fetch_nse_announcements')
+    def test_fetch_announcements_idempotent(self, mock_fetch):
+        now = timezone.now()
+        mock_fetch.return_value = [
+            {'headline': 'Outcome of Board Meeting', 'published_at': now, 'published_text': '11/02/2026, 04:11:00 PM', 'url': 'http://example.com/a.pdf'},
+            {'headline': 'Outcome of Board Meeting', 'published_at': now, 'published_text': '11/02/2026, 04:11:00 PM', 'url': 'http://example.com/a.pdf'},
+        ]
+        first = fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(first['saved_count'], 1)
+        self.assertEqual(Announcement.objects.count(), 1)
+        second = fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(second['saved_count'], 0)
+        self.assertEqual(Announcement.objects.count(), 1)
+
     def test_dedupe_prefers_results_over_other(self):
         base = timezone.now().replace(second=10, microsecond=0)
         url = 'http://example.com/doc.pdf'
