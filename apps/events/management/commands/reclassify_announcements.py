@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from apps.events.models import Announcement
 from apps.events.taxonomy import classify_announcement, compute_dedupe_hash
@@ -39,4 +40,29 @@ class Command(BaseCommand):
         self.stdout.write(f"Total announcements: {total}")
         self.stdout.write(f"High impact (7d): {high_impact_7d.count()}")
         if latest:
-            self.stdout.write(f"Latest high impact: {latest.headline} ({latest.published_at})")
+            ist = timezone.localtime(latest.published_at)
+            self.stdout.write(
+                f"Latest high impact: {latest.headline} (UTC={latest.published_at}, IST={ist})"
+            )
+
+        self.stdout.write("\nMost recent announcements (top 15):")
+        recent = Announcement.objects.order_by('-published_at')[:15]
+        for ann in recent:
+            ist = timezone.localtime(ann.published_at)
+            self.stdout.write(
+                f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
+            )
+
+        keywords = ('outcome of board meeting', 'unaudited', 'financial results')
+        matches = [
+            ann for ann in Announcement.objects.all().iterator()
+            if any(key in ann.headline.lower() for key in keywords)
+        ]
+        self.stdout.write("\nMatches for board meeting/results keywords:")
+        if not matches:
+            self.stdout.write("- None found in DB")
+        for ann in matches:
+            ist = timezone.localtime(ann.published_at)
+            self.stdout.write(
+                f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
+            )

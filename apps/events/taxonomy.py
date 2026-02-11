@@ -20,20 +20,17 @@ def classify_announcement(headline, summary=''):
         'financial results',
         'unaudited financial results',
         'unaudited',
-        'quarter and nine months',
+        'limited review',
+        'standalone',
+        'consolidated',
         'quarter',
-        'results',
-        'standalone and consolidated',
-        'limited review report',
+        'nine months',
     )
 
-    if has('outcome of board meeting') and has('financial', 'results', 'unaudited'):
+    if has('outcome of board meeting') and has(*results_keywords):
         typ = 'results'
         impact_score = 70
-    elif has('outcome of board meeting') and has(*results_keywords):
-        typ = 'results'
-        impact_score = 70
-    elif has(*results_keywords):
+    elif has('financial results', 'unaudited financial results', 'unaudited'):
         typ = 'results'
         impact_score = 70
     elif has('outcome of board meeting'):
