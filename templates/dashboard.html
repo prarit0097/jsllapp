@@ -207,7 +207,13 @@
             </div>
             <div class="card">
                 <h2>Events Fetch</h2>
-                <div class="value" id="events-status">{% if events_last_run and (events_last_run.news_ok or events_last_run.announcements_ok) %}OK{% else %}DEGRADED{% endif %}</div>
+                <div class="value" id="events-status">
+                    {% if events_last_run %}
+                        {% if events_last_run.news_ok or events_last_run.announcements_ok %}OK{% else %}DEGRADED{% endif %}
+                    {% else %}
+                        DEGRADED
+                    {% endif %}
+                </div>
                 <div class="note" id="events-last-run">{% if events_last_run %}Last run: {{ events_last_run.started_at }}{% else %}No runs yet{% endif %}</div>
             </div>
         </div>
