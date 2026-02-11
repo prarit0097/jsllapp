@@ -1,4 +1,4 @@
-import time
+﻿import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -16,23 +16,51 @@ def _headers():
     }
 
 
-def _parse_broadcast_dt(text):
+def _normalize_published_text(text):
     if not text:
-        return None
-    text = text.strip()
+        return ''
+    cleaned = ' '.join(str(text).strip().replace('IST', '').split())
+    return cleaned
+
+
+def parse_nse_datetime_to_utc(published_text):
+    text = _normalize_published_text(published_text)
+    if not text:
+        raise ValueError('empty published_text')
+
     formats = [
         '%d-%b-%Y %H:%M:%S',
         '%d-%b-%Y %H:%M',
-        '%d %b %Y %H:%M:%S',
-        '%d %b %Y %H:%M',
+        '%d/%m/%Y, %I:%M:%S %p',
+        '%d/%m/%Y %I:%M:%S %p',
+        '%d/%m/%Y, %I:%M %p',
+        '%d/%m/%Y %I:%M %p',
     ]
     for fmt in formats:
         try:
             dt = datetime.strptime(text, fmt)
-            return dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
+            ist = dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
+            return ist.astimezone(ZoneInfo('UTC'))
         except ValueError:
             continue
-    return None
+
+    raise ValueError(f'unrecognized published_text format: {text}')
+
+
+def _normalize_url(url):
+    if not url:
+        return ''
+    url = url.strip()
+    if url.startswith('/'):
+        return f'https://www.nseindia.com{url}'
+    return url
+
+
+def _source_id_from_url(url, fallback=''):
+    if not url:
+        return fallback
+    parts = url.split('/')
+    return parts[-1] if parts else fallback
 
 
 def _fetch_json_announcements(session, symbol):
@@ -43,14 +71,16 @@ def _fetch_json_announcements(session, symbol):
     data = resp.json()
     items = []
     for row in data:
-        headline = row.get('desc', '').strip()
+        headline = (row.get('desc') or '').strip()
         broadcast = row.get('dt', '')
-        url = row.get('attchmntFile', '')
+        doc_url = row.get('attchmntFile', '')
         items.append(
             {
                 'headline': headline,
-                'broadcast': broadcast,
-                'url': url,
+                'published_text': broadcast,
+                'url': _normalize_url(doc_url),
+                'source_id': row.get('annId', '') or _source_id_from_url(doc_url, broadcast),
+                'raw': row,
             }
         )
     return items
@@ -65,7 +95,7 @@ def _fetch_html_announcements(session, symbol):
     items = []
     for card in soup.select('.announcementList li'):
         headline = card.get_text(strip=True)
-        items.append({'headline': headline, 'broadcast': '', 'url': ''})
+        items.append({'headline': headline, 'published_text': '', 'url': '', 'source_id': '', 'raw': {}})
     return items
 
 
@@ -80,12 +110,23 @@ def fetch_nse_announcements(symbol='JSLL'):
 
     results = []
     for item in items:
-        broadcast_dt = _parse_broadcast_dt(item.get('broadcast'))
+        published_text = item.get('published_text')
+        try:
+            published_at = parse_nse_datetime_to_utc(published_text)
+            parse_error = None
+        except Exception as exc:
+            published_at = None
+            parse_error = exc
+
         results.append(
             {
-                'headline': item.get('headline', '').strip(),
-                'published_at': broadcast_dt,
-                'url': item.get('url', '').strip(),
+                'headline': (item.get('headline') or '').strip(),
+                'published_at': published_at,
+                'published_text': published_text,
+                'url': (item.get('url') or '').strip(),
+                'source_id': item.get('source_id', ''),
+                'parse_error': parse_error,
+                'raw': item.get('raw', {}),
             }
         )
 

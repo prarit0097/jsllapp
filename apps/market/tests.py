@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
+from apps.events.nse import parse_nse_datetime_to_utc
 from apps.events.services import fetch_announcements_nse
 from apps.events.taxonomy import classify_announcement
 from apps.events.utils import build_announcement_dedupe_key
@@ -183,8 +184,8 @@ class AnnouncementTests(TestCase):
     def test_fetch_announcements_dedupe(self, mock_fetch):
         now = timezone.now()
         mock_fetch.return_value = [
-            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
-            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'url': 'http://example.com/a.pdf'},
+            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'published_text': '11/02/2026, 04:11:00 PM', 'url': 'http://example.com/a.pdf'},
+            {'headline': 'Outcome of Board Meeting - Unaudited Financial Results', 'published_at': now, 'published_text': '11/02/2026, 04:11:00 PM', 'url': 'http://example.com/a.pdf'},
         ]
         result = fetch_announcements_nse(symbol='JSLL')
         self.assertEqual(result['parsed_count'], 2)
@@ -242,6 +243,28 @@ class AnnouncementTests(TestCase):
                 url='http://example.com/a.pdf',
                 dedupe_key=key,
             )
+
+    def test_parse_nse_datetime_formats(self):
+        samples = [
+            '10-Feb-2026 12:24:21',
+            '09-Feb-2026 19:25:07',
+            '11/02/2026, 04:11:00 pm',
+            '11/02/2026 04:11:00 PM',
+        ]
+        for text in samples:
+            dt = parse_nse_datetime_to_utc(text)
+            self.assertIsNotNone(dt.tzinfo)
+
+    @patch('apps.events.services.fetch_nse_announcements')
+    def test_invalid_published_text_skips_row(self, mock_fetch):
+        mock_fetch.return_value = [
+            {'headline': 'Bad date row', 'published_at': None, 'published_text': 'BAD DATE', 'url': 'http://example.com/a.pdf'},
+        ]
+        result = fetch_announcements_nse(symbol='JSLL')
+        self.assertEqual(result['parsed_count'], 1)
+        self.assertEqual(result['saved_count'], 0)
+        self.assertEqual(result['parse_errors'], 1)
+        self.assertEqual(Announcement.objects.count(), 0)
 
 
 class IngestionTests(TestCase):

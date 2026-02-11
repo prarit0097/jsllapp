@@ -63,14 +63,25 @@ def fetch_announcements_nse(symbol='JSLL'):
     skipped_duplicates = 0
     parse_errors = 0
     seen_keys = set()
+    error_samples = []
 
-    for item in items:
+    for idx, item in enumerate(items):
         headline = ' '.join((item.get('headline') or '').split())
         if not headline:
             continue
         published_at = _ensure_ist(item.get('published_at'))
         if not published_at:
             parse_errors += 1
+            if len(error_samples) < 3:
+                error_samples.append(
+                    {
+                        'row_index': idx,
+                        'headline': headline,
+                        'published_text': item.get('published_text', ''),
+                        'doc_url': item.get('url', ''),
+                        'error': repr(item.get('parse_error')),
+                    }
+                )
             continue
 
         dedupe_key = build_announcement_dedupe_key(
@@ -82,6 +93,16 @@ def fetch_announcements_nse(symbol='JSLL'):
         )
         if not dedupe_key:
             parse_errors += 1
+            if len(error_samples) < 3:
+                error_samples.append(
+                    {
+                        'row_index': idx,
+                        'headline': headline,
+                        'published_text': item.get('published_text', ''),
+                        'doc_url': item.get('url', ''),
+                        'error': 'dedupe_key_empty',
+                    }
+                )
             continue
         if dedupe_key in seen_keys:
             skipped_duplicates += 1
@@ -109,6 +130,17 @@ def fetch_announcements_nse(symbol='JSLL'):
             created_count += 1
         else:
             updated_count += 1
+
+    if error_samples:
+        for sample in error_samples:
+            print(
+                'NSE parse failure sample:',
+                f"row={sample['row_index']}",
+                f"headline={sample['headline']}",
+                f"published_text={sample['published_text']}",
+                f"doc_url={sample['doc_url']}",
+                f"error={sample['error']}",
+            )
 
     return {
         'parsed_count': len(items),
