@@ -3,6 +3,38 @@
 from django.db import migrations, models
 
 
+def _normalize(text):
+    return ' '.join((text or '').lower().split())
+
+
+def _compute_dedupe_hash(headline, published_at, url=''):
+    day = published_at.date().isoformat() if published_at else 'unknown'
+    normalized_url = _normalize(url) if url else ''
+    base = f"{day}|{_normalize(headline)}|{normalized_url}"
+    import hashlib
+    return hashlib.md5(base.encode('utf-8')).hexdigest()
+
+
+def populate_and_dedupe(apps, schema_editor):
+    Announcement = apps.get_model('events', 'Announcement')
+    by_hash = {}
+    for ann in Announcement.objects.all().iterator():
+        dedupe_hash = ann.dedupe_hash or _compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+        if ann.dedupe_hash != dedupe_hash:
+            Announcement.objects.filter(id=ann.id).update(dedupe_hash=dedupe_hash)
+        by_hash.setdefault(dedupe_hash, []).append(ann)
+
+    to_delete = []
+    for items in by_hash.values():
+        if len(items) <= 1:
+            continue
+        items_sorted = sorted(items, key=lambda x: (x.impact_score, x.published_at), reverse=True)
+        to_delete.extend([item.id for item in items_sorted[1:]])
+
+    if to_delete:
+        Announcement.objects.filter(id__in=to_delete).delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,6 +42,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(populate_and_dedupe, migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name='announcement',
             constraint=models.UniqueConstraint(fields=('dedupe_hash',), name='uniq_announcement_dedupe_hash'),

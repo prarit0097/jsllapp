@@ -44,16 +44,24 @@ def fetch_news_rss():
     return len(news_objects), ''
 
 
+def _load_existing_hashes(since):
+    existing_hashes = set()
+    qs = Announcement.objects.filter(published_at__gte=since).only('id', 'headline', 'published_at', 'url', 'dedupe_hash')
+    for ann in qs.iterator():
+        if not ann.dedupe_hash:
+            ann.dedupe_hash = compute_dedupe_hash(ann.headline, ann.published_at, ann.url)
+            ann.save(update_fields=['dedupe_hash'])
+        existing_hashes.add(ann.dedupe_hash)
+    return existing_hashes
+
+
 def fetch_announcements_nse(symbol='JSLL'):
     items = fetch_nse_announcements(symbol=symbol)
     if not items:
         return 0, 'no_items'
 
     recent_since = timezone.now() - timezone.timedelta(days=14)
-    existing_hashes = set(
-        Announcement.objects.filter(published_at__gte=recent_since, dedupe_hash__isnull=False)
-        .values_list('dedupe_hash', flat=True)
-    )
+    existing_hashes = _load_existing_hashes(recent_since)
 
     to_create = []
     for item in items:
@@ -63,19 +71,16 @@ def fetch_announcements_nse(symbol='JSLL'):
             continue
 
         classification = classify_announcement(item['headline'])
-        typ = classification['type']
-        impact_score = classification['impact_score']
-        low_priority = classification['low_priority']
 
         to_create.append(
             Announcement(
                 published_at=published_at,
                 headline=item['headline'][:500],
                 url=item['url'],
-                type=typ,
+                type=classification['type'],
                 polarity=classification['polarity'],
-                impact_score=impact_score,
-                low_priority=low_priority,
+                impact_score=classification['impact_score'],
+                low_priority=classification['low_priority'],
                 dedupe_hash=dedupe_hash,
                 tags_json={'tags': classification['tags']},
             )
