@@ -1,9 +1,16 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.market.data_quality import DataQualityEngine
+from apps.market.market_time import (
+    compute_thresholds,
+    is_near_close,
+    is_within_today_session_end,
+    market_state,
+)
 from apps.market.models import IngestRun, Ohlc1m
 from apps.market.providers.mock_provider import MockPriceProvider
 from apps.market.reconcile import reconcile_batches
@@ -17,6 +24,35 @@ class DummyProvider:
 
     def fetch_latest_1m(self):
         return list(self._candles)
+
+
+class MarketTimeTests(TestCase):
+    def test_market_state_open(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = datetime(2026, 2, 11, 10, 0, tzinfo=tz)
+        self.assertEqual(market_state(now), 'OPEN')
+
+    def test_market_state_closed(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = datetime(2026, 2, 11, 20, 0, tzinfo=tz)
+        self.assertEqual(market_state(now), 'CLOSED')
+
+    def test_near_close(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = datetime(2026, 2, 11, 15, 25, tzinfo=tz)
+        self.assertTrue(is_near_close(now))
+
+    def test_thresholds(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = datetime(2026, 2, 11, 10, 0, tzinfo=tz)
+        freshness, min_candles = compute_thresholds(now)
+        self.assertEqual(freshness, 180)
+        self.assertEqual(min_candles, 45)
+
+    def test_within_today_session_end(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        dt = datetime(2026, 2, 11, 15, 30, tzinfo=tz)
+        self.assertTrue(is_within_today_session_end(dt))
 
 
 class IngestionTests(TestCase):

@@ -153,12 +153,9 @@
             </div>
             <div class="card">
                 <h2>Pipeline Status</h2>
-                {% if data_ok %}
-                    <div class="value status ok" id="pipeline-status">OK</div>
-                {% else %}
-                    <div class="value status warn" id="pipeline-status">DEGRADED</div>
-                {% endif %}
+                <div class="value status {% if pipeline_status == 'ok' %}ok{% else %}warn{% endif %}" id="pipeline-status">{{ pipeline_status|upper }}</div>
                 <div class="note">Candles last 60m: <span id="candles-60">{{ candles_last_60m }}</span></div>
+                <div class="note" id="pipeline-reason">{{ pipeline_reason }}</div>
             </div>
             <div class="card">
                 <h2>Last Ingest Run</h2>
@@ -213,6 +210,7 @@
         const lastCandleEl = document.getElementById('last-candle-time');
         const freshnessEl = document.getElementById('freshness');
         const pipelineEl = document.getElementById('pipeline-status');
+        const pipelineReasonEl = document.getElementById('pipeline-reason');
         const liveDot = document.getElementById('live-dot');
         const livePill = document.getElementById('live-pill');
         const candles60El = document.getElementById('candles-60');
@@ -229,12 +227,12 @@
         });
 
         function setStatus(status) {
-            const ok = status === 'ok';
-            pipelineEl.textContent = ok ? 'OK' : 'DEGRADED';
-            pipelineEl.classList.toggle('ok', ok);
-            pipelineEl.classList.toggle('warn', !ok);
-            liveDot.classList.toggle('off', !ok);
-            livePill.textContent = ok ? 'LIVE' : 'DELAYED';
+            const statusText = status ? status.toUpperCase() : 'DEGRADED';
+            pipelineEl.textContent = statusText;
+            pipelineEl.classList.toggle('ok', status === 'ok');
+            pipelineEl.classList.toggle('warn', status !== 'ok');
+            liveDot.classList.toggle('off', status !== 'ok');
+            livePill.textContent = status === 'ok' ? 'LIVE' : (status === 'closed' ? 'CLOSED' : 'DELAYED');
         }
 
         function formatIst(isoString) {
@@ -247,6 +245,7 @@
         function freshnessText(seconds, status) {
             if (typeof seconds !== 'number') return 'Updated --';
             if (status === 'ok') return `Updated ${seconds} sec ago`;
+            if (status === 'closed') return `Updated ${seconds} sec ago (market closed)`;
             return `Updated ${seconds} sec ago (market data delayed)`;
         }
 
@@ -264,6 +263,19 @@
                     lastCandleEl.textContent = formatIst(data.last_candle_time);
                 }
                 freshnessEl.textContent = freshnessText(data.seconds_since_last_candle, data.status);
+                setStatus(data.status);
+            } catch (err) {
+                setStatus('degraded');
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                const res = await fetch('/api/v1/jsll/pipeline/status');
+                if (!res.ok) throw new Error('bad response');
+                const data = await res.json();
+                candles60El.textContent = data.candles_last_60m;
+                pipelineReasonEl.textContent = data.reason;
                 setStatus(data.status);
             } catch (err) {
                 setStatus('degraded');
@@ -288,15 +300,16 @@
                     `<td>${row.source}</td>` +
                     `</tr>`
                 )).join('');
-                candles60El.textContent = data.length;
             } catch (err) {
                 setStatus('degraded');
             }
         }
 
         refreshQuote();
+        refreshStatus();
         refreshOhlc();
         setInterval(refreshQuote, 3000);
+        setInterval(refreshStatus, 15000);
         setInterval(refreshOhlc, 15000);
     </script>
 </body>

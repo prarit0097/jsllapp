@@ -7,6 +7,11 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.market.market_time import (
+    compute_thresholds,
+    is_within_today_session_end,
+    market_state,
+)
 from apps.market.models import IngestRun, Ohlc1m
 
 
@@ -43,10 +48,39 @@ def _freshness(latest):
     seconds_since = None
     if latest:
         seconds_since = int((now_server - latest.ts).total_seconds())
-    status = 'degraded'
-    if latest and (seconds_since is None or seconds_since <= 120):
-        status = 'ok'
-    return now_server, seconds_since, status
+    return now_server, seconds_since
+
+
+def _pipeline_status(latest, candles_last_60m):
+    tz = ZoneInfo(settings.JSLL_MARKET_TZ)
+    now_ist = timezone.now().astimezone(tz)
+    state = market_state(now_ist)
+    freshness_sec, min_candles_60m = compute_thresholds(now_ist)
+
+    now_server, seconds_since = _freshness(latest)
+    freshness_ok = latest is not None and seconds_since is not None and seconds_since <= freshness_sec
+    completeness_ok = candles_last_60m >= min_candles_60m
+
+    if state == 'CLOSED':
+        status = 'closed' if is_within_today_session_end(latest.ts if latest else None) else 'degraded'
+    else:
+        status = 'ok' if (freshness_ok and completeness_ok) else 'degraded'
+
+    reason = f"freshness={seconds_since}s, candles_60m={candles_last_60m}"
+
+    return {
+        'market_state': state,
+        'freshness_ok': freshness_ok,
+        'completeness_ok': completeness_ok,
+        'status': status,
+        'reason': reason,
+        'thresholds': {
+            'freshness_sec': freshness_sec,
+            'min_candles_60m': min_candles_60m,
+        },
+        'now_server_time': now_server,
+        'seconds_since_last_candle': seconds_since,
+    }
 
 
 def dashboard(request):
@@ -58,7 +92,8 @@ def dashboard(request):
     last_candle_time_ist = _format_market_time(last_candle_time)
     since = timezone.now() - timedelta(minutes=60)
     candles_last_60m = Ohlc1m.objects.filter(ts__gte=since).count()
-    data_ok = bool(last_run and (last_run.primary_ok or last_run.fallback_ok) and candles_last_60m > 0)
+
+    pipeline = _pipeline_status(latest, candles_last_60m)
 
     return render(
         request,
@@ -70,7 +105,9 @@ def dashboard(request):
             'last_candle_time': last_candle_time,
             'last_candle_time_ist': last_candle_time_ist,
             'candles_last_60m': candles_last_60m,
-            'data_ok': data_ok,
+            'data_ok': pipeline['status'] == 'ok',
+            'pipeline_status': pipeline['status'],
+            'pipeline_reason': pipeline['reason'],
             'ticker': settings.JSLL_TICKER,
             'market_tz': settings.JSLL_MARKET_TZ,
         },
@@ -110,7 +147,7 @@ class Ohlc1mView(APIView):
 class LatestQuoteView(APIView):
     def get(self, request):
         latest = Ohlc1m.objects.order_by('-ts').first()
-        now_server, seconds_since, status = _freshness(latest)
+        now_server, seconds_since = _freshness(latest)
         if latest is None:
             return Response(
                 {
@@ -123,6 +160,8 @@ class LatestQuoteView(APIView):
                     'last_candle_time_ist': None,
                 }
             )
+        freshness_sec, _min_candles = compute_thresholds(timezone.now().astimezone(ZoneInfo(settings.JSLL_MARKET_TZ)))
+        status = 'ok' if seconds_since is not None and seconds_since <= freshness_sec else 'degraded'
         return Response(
             {
                 'ticker': settings.JSLL_TICKER,
@@ -143,18 +182,24 @@ class PipelineStatusView(APIView):
         last_candle_time = latest.ts if latest else None
         since = timezone.now() - timedelta(minutes=60)
         candles_last_60m = Ohlc1m.objects.filter(ts__gte=since).count()
-        now_server, seconds_since, status = _freshness(latest)
+
+        pipeline = _pipeline_status(latest, candles_last_60m)
 
         return Response(
             {
                 'last_run': _serialize_run(last_run),
                 'last_candle_time': last_candle_time,
                 'candles_last_60m': candles_last_60m,
-                'data_ok': bool(status == 'ok'),
+                'data_ok': pipeline['status'] == 'ok',
                 'ticker': settings.JSLL_TICKER,
                 'market_tz': settings.JSLL_MARKET_TZ,
-                'now_server_time': now_server,
-                'seconds_since_last_candle': seconds_since,
-                'status': status,
+                'now_server_time': pipeline['now_server_time'],
+                'seconds_since_last_candle': pipeline['seconds_since_last_candle'],
+                'status': pipeline['status'],
+                'market_state': pipeline['market_state'],
+                'freshness_ok': pipeline['freshness_ok'],
+                'completeness_ok': pipeline['completeness_ok'],
+                'reason': pipeline['reason'],
+                'thresholds': pipeline['thresholds'],
             }
         )

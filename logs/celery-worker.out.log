@@ -1,0 +1,19 @@
+ 
+ -------------- celery@DESKTOP-8S5JF90 v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- Windows-10-10.0.19045-SP0 2026-02-11 15:10:36
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         config:0x1ede2ceb370
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 4 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . apps.market.tasks.ingest_1m_task
+
