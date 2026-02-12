@@ -28,6 +28,7 @@ class LatestQuoteSerializer(serializers.Serializer):
     seconds_since_last_candle = serializers.IntegerField(allow_null=True)
     delayed = serializers.BooleanField()
     delay_threshold_sec = serializers.IntegerField()
+    delayed_reason = serializers.CharField(allow_null=True)
     status = serializers.CharField()
     last_candle_time_ist = serializers.CharField(allow_null=True)
 

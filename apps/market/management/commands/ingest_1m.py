@@ -12,7 +12,7 @@ class Command(BaseCommand):
         primary = YFinanceHistoryProvider()
         fallback = YFinanceDownloadProvider()
 
-        run = ingest_1m_candles_multi(primary, fallback)
+        run, meta = ingest_1m_candles_multi(primary, fallback)
 
         self.stdout.write('Ingestion summary')
         self.stdout.write(f"Primary OK: {run.primary_ok} ({run.candles_fetched_primary})")
@@ -20,5 +20,11 @@ class Command(BaseCommand):
         self.stdout.write(f"Candles saved: {run.candles_saved}")
         self.stdout.write(f"Missing filled: {run.missing_filled}")
         self.stdout.write(f"Outliers rejected: {run.outliers_rejected}")
+        if meta.get('fetched_end_ts'):
+            self.stdout.write(f"Fetched end ts: {meta.get('fetched_end_ts')}")
+        if meta.get('provider_delay_sec') is not None:
+            self.stdout.write(f"Provider delay sec: {meta.get('provider_delay_sec')}")
+        if meta.get('no_new_candles'):
+            self.stdout.write('No new candles')
         if run.notes:
             self.stdout.write(f"Notes: {run.notes}")

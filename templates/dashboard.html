@@ -193,6 +193,7 @@
                 <div class="value"><span class="live-dot" id="live-dot"></span><span id="last-price">{% if latest %}{{ latest.close }}{% else %}--{% endif %}</span></div>
                 <div class="note" id="freshness">Updated --</div>
                 <div class="note" id="delay-threshold">Delay threshold: --</div>
+                <div class="note" id="delay-reason">Delay reason: --</div>
             </div>
             <div class="card">
                 <h2>Last Candle Time (IST)</h2>
@@ -325,6 +326,7 @@
         const lastCandleEl = document.getElementById('last-candle-time');
         const freshnessEl = document.getElementById('freshness');
         const delayThresholdEl = document.getElementById('delay-threshold');
+        const delayReasonEl = document.getElementById('delay-reason');
         const pipelineEl = document.getElementById('pipeline-status');
         const pipelineReasonEl = document.getElementById('pipeline-reason');
         const liveDot = document.getElementById('live-dot');
@@ -429,6 +431,7 @@
                 delayThresholdEl.textContent = typeof data.delay_threshold_sec === 'number'
                     ? `Delay threshold: ${data.delay_threshold_sec} sec`
                     : 'Delay threshold: --';
+                delayReasonEl.textContent = data.delayed_reason ? `Delay reason: ${data.delayed_reason}` : 'Delay reason: --';
                 setPriceStatus(delayed);
             } catch (err) {
                 setPriceStatus(true);

@@ -58,6 +58,34 @@ def ingest_1m_candles_multi(primary_provider, fallback_provider):
 
     merged = reconcile_batches(primary_batch, fallback_batch)
     last_candle = Ohlc1m.objects.order_by('-ts').first()
+    db_latest_ts = last_candle.ts if last_candle else None
+
+    fetched_end_ts = max((item['ts'] for item in merged), default=None)
+    provider_delay_sec = None
+    if fetched_end_ts:
+        provider_delay_sec = int((timezone.now() - fetched_end_ts).total_seconds())
+        notes.append(f"provider_delay_sec={provider_delay_sec}")
+        notes.append(f"fetched_end_ts={fetched_end_ts.isoformat()}")
+    if db_latest_ts:
+        notes.append(f"db_latest_ts={db_latest_ts.isoformat()}")
+
+    meta = {
+        'fetched_end_ts': fetched_end_ts,
+        'db_latest_ts': db_latest_ts,
+        'provider_delay_sec': provider_delay_sec,
+        'no_new_candles': False,
+    }
+
+    if fetched_end_ts and db_latest_ts and fetched_end_ts <= db_latest_ts:
+        meta['no_new_candles'] = True
+        notes.append('no_new_candles')
+        run.candles_saved = 0
+        run.missing_filled = 0
+        run.outliers_rejected = 0
+        run.notes = '; '.join(notes)
+        run.finished_at = timezone.now()
+        run.save()
+        return run, meta
 
     engine = DataQualityEngine()
     cleaned, stats = engine.clean_batch(last_candle, merged)
@@ -83,4 +111,4 @@ def ingest_1m_candles_multi(primary_provider, fallback_provider):
     run.notes = '; '.join(notes)
     run.finished_at = timezone.now()
     run.save()
-    return run
+    return run, meta

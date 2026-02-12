@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from unittest.mock import patch
 
@@ -386,10 +386,11 @@ class IngestionTests(TestCase):
         ]
         primary = DummyProvider(candles)
         fallback = DummyProvider([])
-        run = ingest_1m_candles_multi(primary, fallback)
+        run, meta = ingest_1m_candles_multi(primary, fallback)
         self.assertEqual(IngestRun.objects.count(), 1)
         self.assertGreater(Ohlc1m.objects.count(), 0)
         self.assertTrue(run.primary_ok)
+        self.assertIsNotNone(meta['fetched_end_ts'])
 
     def test_is_market_open_basic(self):
         now = timezone.now().replace(hour=10, minute=0)

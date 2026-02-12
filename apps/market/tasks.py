@@ -36,11 +36,11 @@ def ingest_1m_task():
 
         primary = YFinanceHistoryProvider()
         fallback = YFinanceDownloadProvider()
-        run = ingest_1m_candles_multi(primary, fallback)
+        run, meta = ingest_1m_candles_multi(primary, fallback)
         latest = Ohlc1m.objects.order_by('-ts').first()
         latest_ts = latest.ts if latest else None
         logger.info(
-            'Ingest summary primary_ok=%s fallback_ok=%s fetched_primary=%s fetched_fallback=%s saved=%s missing=%s outliers=%s latest_ts=%s',
+            'Ingest summary primary_ok=%s fallback_ok=%s fetched_primary=%s fetched_fallback=%s saved=%s missing=%s outliers=%s latest_ts=%s fetched_end_ts=%s provider_delay_sec=%s no_new_candles=%s',
             run.primary_ok,
             run.fallback_ok,
             run.candles_fetched_primary,
@@ -49,6 +49,9 @@ def ingest_1m_task():
             run.missing_filled,
             run.outliers_rejected,
             latest_ts,
+            meta.get('fetched_end_ts'),
+            meta.get('provider_delay_sec'),
+            meta.get('no_new_candles'),
         )
         logger.info('Ingest task finished')
         return 'ok'

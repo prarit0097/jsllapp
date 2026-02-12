@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -80,6 +81,17 @@ def _freshness(latest):
     if latest:
         seconds_since = int((now_server - latest.ts).total_seconds())
     return now_server, seconds_since
+
+
+def _extract_delay_reason(notes):
+    if not notes:
+        return None
+    if 'no_new_candles' in notes:
+        return 'no_new_candles'
+    match = re.search(r'provider_delay_sec=(\d+)', notes)
+    if match:
+        return f"provider_delay_sec={match.group(1)}"
+    return None
 
 
 def _pipeline_status(latest, candles_last_60m):
@@ -227,6 +239,8 @@ class LatestQuoteView(APIView):
         latest = Ohlc1m.objects.order_by('-ts').first()
         now_server, seconds_since = _freshness(latest)
         delay_threshold = settings.JSLL_PRICE_DELAY_SEC
+        last_ingest = IngestRun.objects.first()
+        delayed_reason = _extract_delay_reason(last_ingest.notes if last_ingest else '')
 
         if latest is None:
             return Response(
@@ -238,6 +252,7 @@ class LatestQuoteView(APIView):
                     'seconds_since_last_candle': seconds_since,
                     'delayed': True,
                     'delay_threshold_sec': delay_threshold,
+                    'delayed_reason': delayed_reason,
                     'status': 'degraded',
                     'last_candle_time_ist': None,
                 }
@@ -255,6 +270,7 @@ class LatestQuoteView(APIView):
                 'seconds_since_last_candle': seconds_since,
                 'delayed': delayed,
                 'delay_threshold_sec': delay_threshold,
+                'delayed_reason': delayed_reason,
                 'status': status,
                 'last_candle_time_ist': _format_market_time(latest.ts),
             }

@@ -37,6 +37,7 @@ class QuoteEndpointTests(APITestCase):
         self.assertIn('status', payload)
         self.assertIn('delayed', payload)
         self.assertIn('delay_threshold_sec', payload)
+        self.assertIn('delayed_reason', payload)
 
     def test_quote_delayed_flag_false_when_fresh(self):
         ts = timezone.now() - timedelta(seconds=60)
