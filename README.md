@@ -1,4 +1,4 @@
-# JSLL Decision Intelligence (Phase 0)
+﻿# JSLL Decision Intelligence (Phase 0)
 
 A minimal Django + Django REST Framework service for JSLL analytics and prediction.
 
@@ -31,6 +31,14 @@ python manage.py runserver
 ```
 
 Health check: `GET /api/v1/health`
+
+## Operational Commands
+```bash
+python manage.py ingest_1m
+python manage.py fetch_events
+python manage.py reclassify_announcements
+python manage.py compute_scores
+```
 
 ## Test
 ```bash

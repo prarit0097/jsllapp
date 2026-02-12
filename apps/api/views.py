@@ -149,6 +149,12 @@ def dashboard(request):
     latest_high_impact = high_impact_7d.order_by('-published_at').first()
     last_events_run = EventsFetchRun.objects.first()
 
+    latest_score = SignalScore.objects.order_by('-ts').first()
+    score_ts_ist = _format_market_time(latest_score.ts) if latest_score else None
+    score_freshness_sec = None
+    if latest_score:
+        score_freshness_sec = int((timezone.now() - latest_score.ts).total_seconds())
+
     return render(
         request,
         'dashboard.html',
@@ -170,6 +176,8 @@ def dashboard(request):
             'announcements_24h_count': high_impact_24h.count(),
             'latest_high_impact': latest_high_impact,
             'events_last_run': last_events_run,
+            'score_ts_ist': score_ts_ist,
+            'score_freshness_sec': score_freshness_sec,
         },
     )
 

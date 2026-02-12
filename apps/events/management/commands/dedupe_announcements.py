@@ -34,7 +34,7 @@ class Command(BaseCommand):
         top_dupes = sorted(((k, len(v)) for k, v in by_key.items()), key=lambda x: x[1], reverse=True)
 
         for key, items in by_key.items():
-            items_sorted = sorted(items, key=lambda x: (_score(x), x.published_at), reverse=True)
+            items_sorted = sorted(items, key=lambda x: (x.published_at, _score(x)), reverse=True)
             keep = items_sorted[0]
             to_keep.append((keep.id, key))
             to_delete.extend([item.id for item in items_sorted[1:]])

@@ -1,4 +1,4 @@
-{% load tz %}
+﻿{% load tz %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +14,8 @@
             --ok: #16a34a;
             --warn: #f59e0b;
             --border: #e2e8f0;
+            --bar-bg: #e2e8f0;
+            --bar-fill: #0f172a;
         }
         body {
             font-family: "Segoe UI", Arial, sans-serif;
@@ -142,6 +144,31 @@
             color: var(--muted);
             font-size: 0.8rem;
         }
+        .score-row {
+            margin-bottom: 0.6rem;
+        }
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+        }
+        .bar {
+            background: var(--bar-bg);
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+            margin-top: 0.3rem;
+        }
+        .bar-fill {
+            background: var(--bar-fill);
+            height: 100%;
+            width: 50%;
+        }
+        .reason {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
     </style>
 </head>
 <body>
@@ -186,6 +213,44 @@
                 {% else %}
                     <div class="note">No runs yet.</div>
                 {% endif %}
+            </div>
+        </div>
+
+        <div class="section-title">Signals & Scores</div>
+        <div class="grid">
+            <div class="card">
+                <h2>Overall Score</h2>
+                <div class="value" id="score-overall">--</div>
+                <div class="note" id="score-time">{% if score_ts_ist %}Last score: {{ score_ts_ist }}{% else %}Waiting for first score run...{% endif %}</div>
+                <div class="note" id="score-freshness">{% if score_freshness_sec %}Updated {{ score_freshness_sec }} sec ago{% else %}--{% endif %}</div>
+            </div>
+            <div class="card">
+                <h2>Category Scores</h2>
+                <div class="score-row">
+                    <div class="score-label"><span>Price Action</span><span id="score-price">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-price"></div></div>
+                    <div class="reason" id="reason-price">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Volume</span><span id="score-volume">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-volume"></div></div>
+                    <div class="reason" id="reason-volume">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Announcements</span><span id="score-announcements">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-announcements"></div></div>
+                    <div class="reason" id="reason-announcements">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>News</span><span id="score-news">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-news"></div></div>
+                    <div class="reason" id="reason-news">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Regime</span><span id="score-regime">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-regime"></div></div>
+                    <div class="reason" id="reason-regime">--</div>
+                </div>
             </div>
         </div>
 
@@ -274,6 +339,24 @@
         const announcementImpactEl = document.getElementById('announcement-impact');
         const eventsStatusEl = document.getElementById('events-status');
         const eventsLastRunEl = document.getElementById('events-last-run');
+        const scoreOverallEl = document.getElementById('score-overall');
+        const scoreTimeEl = document.getElementById('score-time');
+        const scoreFreshnessEl = document.getElementById('score-freshness');
+        const scorePriceEl = document.getElementById('score-price');
+        const scoreVolumeEl = document.getElementById('score-volume');
+        const scoreAnnouncementsEl = document.getElementById('score-announcements');
+        const scoreNewsEl = document.getElementById('score-news');
+        const scoreRegimeEl = document.getElementById('score-regime');
+        const barPrice = document.getElementById('bar-price');
+        const barVolume = document.getElementById('bar-volume');
+        const barAnnouncements = document.getElementById('bar-announcements');
+        const barNews = document.getElementById('bar-news');
+        const barRegime = document.getElementById('bar-regime');
+        const reasonPrice = document.getElementById('reason-price');
+        const reasonVolume = document.getElementById('reason-volume');
+        const reasonAnnouncements = document.getElementById('reason-announcements');
+        const reasonNews = document.getElementById('reason-news');
+        const reasonRegime = document.getElementById('reason-regime');
 
         const istFormatter = new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
@@ -317,6 +400,11 @@
                 return { label: 'Negative', className: 'negative' };
             }
             return { label: 'Neutral', className: 'neutral' };
+        }
+
+        function setBar(el, value) {
+            const v = Math.max(0, Math.min(100, value || 0));
+            el.style.width = `${v}%`;
         }
 
         async function refreshQuote() {
@@ -378,6 +466,45 @@
             }
         }
 
+        async function refreshScores() {
+            try {
+                const res = await fetch('/api/v1/jsll/scores/latest');
+                if (!res.ok) throw new Error('bad response');
+                const data = await res.json();
+                if (!data.ts) {
+                    scoreOverallEl.textContent = '--';
+                    scoreTimeEl.textContent = 'Waiting for first score run...';
+                    scoreFreshnessEl.textContent = '--';
+                    return;
+                }
+                const scores = data.scores || {};
+                scoreOverallEl.textContent = scores.overall ?? '--';
+                scorePriceEl.textContent = scores.price_action ?? '--';
+                scoreVolumeEl.textContent = scores.volume ?? '--';
+                scoreAnnouncementsEl.textContent = scores.announcements ?? '--';
+                scoreNewsEl.textContent = scores.news ?? '--';
+                scoreRegimeEl.textContent = scores.regime ?? '--';
+                setBar(barPrice, scores.price_action);
+                setBar(barVolume, scores.volume);
+                setBar(barAnnouncements, scores.announcements);
+                setBar(barNews, scores.news);
+                setBar(barRegime, scores.regime);
+                scoreTimeEl.textContent = data.ts_ist ? `Last score: ${data.ts_ist}` : 'Last score: --';
+                if (data.ts) {
+                    const secs = Math.max(0, Math.floor((Date.now() - Date.parse(data.ts)) / 1000));
+                    scoreFreshnessEl.textContent = `Updated ${secs} sec ago`;
+                }
+                const reasons = (data.explain && data.explain.top_reasons) || [];
+                reasonPrice.textContent = reasons[0] || '--';
+                reasonVolume.textContent = reasons[1] || '--';
+                reasonAnnouncements.textContent = reasons[2] || '--';
+                reasonNews.textContent = reasons[1] || '--';
+                reasonRegime.textContent = reasons[2] || '--';
+            } catch (err) {
+                scoreTimeEl.textContent = 'Scores unavailable';
+            }
+        }
+
         async function refreshOhlc() {
             try {
                 const res = await fetch('/api/v1/jsll/ohlc/1m?limit=20');
@@ -404,10 +531,12 @@
         refreshQuote();
         refreshStatus();
         refreshEvents();
+        refreshScores();
         refreshOhlc();
         setInterval(refreshQuote, 3000);
         setInterval(refreshStatus, 15000);
         setInterval(refreshEvents, 15000);
+        setInterval(refreshScores, 15000);
         setInterval(refreshOhlc, 15000);
     </script>
 </body>

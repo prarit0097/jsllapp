@@ -22,6 +22,10 @@ app.conf.beat_schedule = {
         'schedule': 1800.0,
         'args': ('closed',),
     },
+    'compute-scores-every-minute': {
+        'task': 'apps.features.tasks.compute_scores_task',
+        'schedule': 60.0,
+    },
 }
 
 app.autodiscover_tasks()

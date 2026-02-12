@@ -43,4 +43,10 @@ def compute_latest_missing():
     latest_candle = Ohlc1m.objects.order_by('-ts').first()
     if latest_candle is None:
         return None
+
+    latest_score = SignalScore.objects.order_by('-ts').first()
+    ts_floor = localtime_floor_minute(latest_candle.ts)
+    if latest_score and ts_floor and latest_score.ts >= ts_floor:
+        return latest_score
+
     return compute_and_store(latest_candle.ts)
