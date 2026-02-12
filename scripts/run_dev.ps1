@@ -46,8 +46,8 @@ $workerErr = Join-Path $logsDir 'celery-worker.err.log'
 $beatOut = Join-Path $logsDir 'celery-beat.out.log'
 $beatErr = Join-Path $logsDir 'celery-beat.err.log'
 
-Write-Log 'Starting Celery worker (logs/celery-worker.*.log)'
-Start-Process -FilePath $celery -ArgumentList '-A config worker -l info' -WorkingDirectory $root -RedirectStandardOutput $workerOut -RedirectStandardError $workerErr | Out-Null
+Write-Log 'Starting Celery worker (logs/celery-worker.*.log) using solo pool'
+Start-Process -FilePath $celery -ArgumentList '-A config worker -l info -P solo' -WorkingDirectory $root -RedirectStandardOutput $workerOut -RedirectStandardError $workerErr | Out-Null
 
 Write-Log 'Starting Celery beat (logs/celery-beat.*.log)'
 Start-Process -FilePath $celery -ArgumentList '-A config beat -l info' -WorkingDirectory $root -RedirectStandardOutput $beatOut -RedirectStandardError $beatErr | Out-Null
