@@ -19,6 +19,7 @@ from apps.api.serializers import (
     NewsItemSerializer,
     OhlcCandleSerializer,
     PipelineStatusSerializer,
+    PredictionsLatestSerializer,
     ScoresLatestSerializer,
 )
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
@@ -30,6 +31,7 @@ from apps.market.market_time import (
     market_state,
 )
 from apps.market.models import IngestRun, Ohlc1m
+from apps.predictions.models import PricePrediction, PricePredictionRun
 
 
 def _serialize_run(run):
@@ -443,5 +445,56 @@ class ScoresLatestView(APIView):
                     'overall': latest.overall_score,
                 },
                 'explain': latest.explain_json,
+            }
+        )
+
+
+class PredictionsLatestView(APIView):
+    serializer_class = PredictionsLatestSerializer
+
+    @extend_schema(responses=PredictionsLatestSerializer)
+    def get(self, request):
+        latest = PricePrediction.objects.order_by('-ts').first()
+        if not latest:
+            return Response(
+                {
+                    'last_ts': None,
+                    'last_ts_ist': None,
+                    'last_close': None,
+                    'predictions': [],
+                    'backtest': None,
+                }
+            )
+
+        preds = PricePrediction.objects.filter(ts=latest.ts).order_by('horizon_min')
+        horizon_map = {
+            60: '1h',
+            180: '3h',
+            300: '5h',
+            1440: '1d',
+        }
+        payload = []
+        for pred in preds:
+            payload.append(
+                {
+                    'horizon': horizon_map.get(pred.horizon_min, str(pred.horizon_min)),
+                    'horizon_min': pred.horizon_min,
+                    'predicted_return': pred.predicted_return,
+                    'predicted_price': pred.predicted_price,
+                    'model_name': pred.model_name,
+                    'created_at': pred.created_at,
+                }
+            )
+
+        latest_run = PricePredictionRun.objects.first()
+        backtest = latest_run.metrics_json if latest_run else None
+
+        return Response(
+            {
+                'last_ts': latest.ts,
+                'last_ts_ist': _format_market_time(latest.ts),
+                'last_close': latest.last_close,
+                'predictions': payload,
+                'backtest': backtest,
             }
         )

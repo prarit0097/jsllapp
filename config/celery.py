@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 from celery import Celery
 
@@ -25,6 +25,10 @@ app.conf.beat_schedule = {
     'compute-scores-every-minute': {
         'task': 'apps.features.tasks.compute_scores_task',
         'schedule': 60.0,
+    },
+    'predict-every-5-min': {
+        'task': 'apps.predictions.tasks.prediction_task',
+        'schedule': 300.0,
     },
 }
 

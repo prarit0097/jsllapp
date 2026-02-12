@@ -119,6 +119,7 @@
         .pill.negative { background: #fee2e2; color: #991b1b; }
         .pill.neutral { background: #e5e7eb; color: #374151; }
         .pill.impact { background: #ede9fe; color: #5b21b6; }
+        .pill.prediction { background: #dbeafe; color: #1e3a8a; }
         .live-dot {
             width: 8px;
             height: 8px;
@@ -256,6 +257,58 @@
             </div>
         </div>
 
+        <div class="section-title">Predictions</div>
+        <div class="note">Experimental. Not financial advice.</div>
+        <div class="grid">
+            <div class="card">
+                <h2>1 Hour</h2>
+                <div class="value" id="pred-1h-price">--</div>
+                <div class="note" id="pred-1h-return">Return: --</div>
+                <div class="note" id="pred-1h-model">Model: --</div>
+                <div class="note" id="pred-1h-time">Updated: --</div>
+            </div>
+            <div class="card">
+                <h2>3 Hours</h2>
+                <div class="value" id="pred-3h-price">--</div>
+                <div class="note" id="pred-3h-return">Return: --</div>
+                <div class="note" id="pred-3h-model">Model: --</div>
+                <div class="note" id="pred-3h-time">Updated: --</div>
+            </div>
+            <div class="card">
+                <h2>5 Hours</h2>
+                <div class="value" id="pred-5h-price">--</div>
+                <div class="note" id="pred-5h-return">Return: --</div>
+                <div class="note" id="pred-5h-model">Model: --</div>
+                <div class="note" id="pred-5h-time">Updated: --</div>
+            </div>
+            <div class="card">
+                <h2>Next Day</h2>
+                <div class="value" id="pred-1d-price">--</div>
+                <div class="note" id="pred-1d-return">Return: --</div>
+                <div class="note" id="pred-1d-model">Model: --</div>
+                <div class="note" id="pred-1d-time">Updated: --</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Backtest Metrics (latest run)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Horizon</th>
+                        <th>MAE</th>
+                        <th>Directional Accuracy</th>
+                        <th>Samples</th>
+                    </tr>
+                </thead>
+                <tbody id="backtest-body">
+                    <tr>
+                        <td colspan="4">No backtest run yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="section-title">Events</div>
         <div class="grid">
             <div class="card">
@@ -361,6 +414,23 @@
         const reasonAnnouncements = document.getElementById('reason-announcements');
         const reasonNews = document.getElementById('reason-news');
         const reasonRegime = document.getElementById('reason-regime');
+        const pred1hPrice = document.getElementById('pred-1h-price');
+        const pred1hReturn = document.getElementById('pred-1h-return');
+        const pred1hModel = document.getElementById('pred-1h-model');
+        const pred1hTime = document.getElementById('pred-1h-time');
+        const pred3hPrice = document.getElementById('pred-3h-price');
+        const pred3hReturn = document.getElementById('pred-3h-return');
+        const pred3hModel = document.getElementById('pred-3h-model');
+        const pred3hTime = document.getElementById('pred-3h-time');
+        const pred5hPrice = document.getElementById('pred-5h-price');
+        const pred5hReturn = document.getElementById('pred-5h-return');
+        const pred5hModel = document.getElementById('pred-5h-model');
+        const pred5hTime = document.getElementById('pred-5h-time');
+        const pred1dPrice = document.getElementById('pred-1d-price');
+        const pred1dReturn = document.getElementById('pred-1d-return');
+        const pred1dModel = document.getElementById('pred-1d-model');
+        const pred1dTime = document.getElementById('pred-1d-time');
+        const backtestBody = document.getElementById('backtest-body');
 
         const istFormatter = new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
@@ -411,6 +481,21 @@
         function setBar(el, value) {
             const v = Math.max(0, Math.min(100, value || 0));
             el.style.width = `${v}%`;
+        }
+
+        function setPrediction(elPrice, elReturn, elModel, elTime, pred) {
+            if (!pred) {
+                elPrice.textContent = '--';
+                elReturn.textContent = 'Return: --';
+                elModel.textContent = 'Model: --';
+                elTime.textContent = 'Updated: --';
+                return;
+            }
+            elPrice.textContent = pred.predicted_price?.toFixed(2) ?? '--';
+            const retPct = pred.predicted_return != null ? (pred.predicted_return * 100).toFixed(2) : '--';
+            elReturn.textContent = `Return: ${retPct}%`;
+            elModel.textContent = `Model: ${pred.model_name || '--'}`;
+            elTime.textContent = pred.created_at ? `Updated: ${formatIst(pred.created_at)}` : 'Updated: --';
         }
 
         async function refreshQuote() {
@@ -516,6 +601,36 @@
             }
         }
 
+        async function refreshPredictions() {
+            try {
+                const res = await fetch('/api/predictions/latest');
+                if (!res.ok) throw new Error('bad response');
+                const data = await res.json();
+                const preds = Array.isArray(data.predictions) ? data.predictions : [];
+                const byHorizon = {};
+                preds.forEach((pred) => {
+                    byHorizon[pred.horizon] = pred;
+                });
+                setPrediction(pred1hPrice, pred1hReturn, pred1hModel, pred1hTime, byHorizon['1h']);
+                setPrediction(pred3hPrice, pred3hReturn, pred3hModel, pred3hTime, byHorizon['3h']);
+                setPrediction(pred5hPrice, pred5hReturn, pred5hModel, pred5hTime, byHorizon['5h']);
+                setPrediction(pred1dPrice, pred1dReturn, pred1dModel, pred1dTime, byHorizon['1d']);
+
+                if (data.backtest) {
+                    const rows = Object.keys(data.backtest).map((key) => {
+                        const row = data.backtest[key];
+                        const mae = row.mae !== null ? row.mae.toFixed(6) : '--';
+                        const acc = row.directional_accuracy !== null ? (row.directional_accuracy * 100).toFixed(1) + '%' : '--';
+                        const samples = row.samples ?? 0;
+                        return `<tr><td>${key}</td><td>${mae}</td><td>${acc}</td><td>${samples}</td></tr>`;
+                    });
+                    backtestBody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4">No backtest run yet.</td></tr>';
+                }
+            } catch (err) {
+                backtestBody.innerHTML = '<tr><td colspan="4">Backtest unavailable.</td></tr>';
+            }
+        }
+
         async function refreshOhlc() {
             try {
                 const res = await fetch('/api/v1/jsll/ohlc/1m?limit=20');
@@ -543,11 +658,13 @@
         refreshStatus();
         refreshEvents();
         refreshScores();
+        refreshPredictions();
         refreshOhlc();
         setInterval(refreshQuote, 3000);
         setInterval(refreshStatus, 15000);
         setInterval(refreshEvents, 15000);
         setInterval(refreshScores, 15000);
+        setInterval(refreshPredictions, 15000);
         setInterval(refreshOhlc, 15000);
     </script>
 </body>

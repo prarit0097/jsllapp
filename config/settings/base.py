@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'apps.events',
     'apps.financials',
     'apps.features',
+    'apps.predictions',
     'apps.ml',
     'apps.tournament',
     'apps.api',

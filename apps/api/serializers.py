@@ -93,3 +93,11 @@ class ScoresLatestSerializer(serializers.Serializer):
     ts_ist = serializers.CharField(allow_null=True)
     scores = serializers.DictField()
     explain = serializers.DictField()
+
+
+class PredictionsLatestSerializer(serializers.Serializer):
+    last_ts = serializers.DateTimeField(allow_null=True)
+    last_ts_ist = serializers.CharField(allow_null=True)
+    last_close = serializers.FloatField(allow_null=True)
+    predictions = serializers.ListField(child=serializers.DictField())
+    backtest = serializers.DictField(allow_null=True)
