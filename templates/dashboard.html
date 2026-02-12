@@ -192,6 +192,7 @@
                 <h2>Last Price <span class="pill" id="live-pill">LIVE</span></h2>
                 <div class="value"><span class="live-dot" id="live-dot"></span><span id="last-price">{% if latest %}{{ latest.close }}{% else %}--{% endif %}</span></div>
                 <div class="note" id="freshness">Updated --</div>
+                <div class="note" id="delay-threshold">Delay threshold: --</div>
             </div>
             <div class="card">
                 <h2>Last Candle Time (IST)</h2>
@@ -323,6 +324,7 @@
         const lastPriceEl = document.getElementById('last-price');
         const lastCandleEl = document.getElementById('last-candle-time');
         const freshnessEl = document.getElementById('freshness');
+        const delayThresholdEl = document.getElementById('delay-threshold');
         const pipelineEl = document.getElementById('pipeline-status');
         const pipelineReasonEl = document.getElementById('pipeline-reason');
         const liveDot = document.getElementById('live-dot');
@@ -424,6 +426,9 @@
                 }
                 const delayed = data.delayed === true;
                 freshnessEl.textContent = freshnessText(data.seconds_since_last_candle, delayed);
+                delayThresholdEl.textContent = typeof data.delay_threshold_sec === 'number'
+                    ? `Delay threshold: ${data.delay_threshold_sec} sec`
+                    : 'Delay threshold: --';
                 setPriceStatus(delayed);
             } catch (err) {
                 setPriceStatus(true);
