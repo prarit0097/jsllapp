@@ -228,6 +228,7 @@
                 <div class="note" id="pred-1h-return">Return: --</div>
                 <div class="note" id="pred-1h-model">Model: --</div>
                 <div class="note" id="pred-1h-time">Updated: --</div>
+                <div class="note" id="pred-1h-target">Prediction for: --</div>
             </div>
             <div class="card">
                 <h2>3 Hours</h2>
@@ -235,6 +236,7 @@
                 <div class="note" id="pred-3h-return">Return: --</div>
                 <div class="note" id="pred-3h-model">Model: --</div>
                 <div class="note" id="pred-3h-time">Updated: --</div>
+                <div class="note" id="pred-3h-target">Prediction for: --</div>
             </div>
             <div class="card">
                 <h2>5 Hours</h2>
@@ -242,6 +244,7 @@
                 <div class="note" id="pred-5h-return">Return: --</div>
                 <div class="note" id="pred-5h-model">Model: --</div>
                 <div class="note" id="pred-5h-time">Updated: --</div>
+                <div class="note" id="pred-5h-target">Prediction for: --</div>
             </div>
             <div class="card">
                 <h2>Next Day</h2>
@@ -249,6 +252,7 @@
                 <div class="note" id="pred-1d-return">Return: --</div>
                 <div class="note" id="pred-1d-model">Model: --</div>
                 <div class="note" id="pred-1d-time">Updated: --</div>
+                <div class="note" id="pred-1d-target">Prediction for: --</div>
             </div>
         </div>
 
@@ -418,18 +422,22 @@
         const pred1hReturn = document.getElementById('pred-1h-return');
         const pred1hModel = document.getElementById('pred-1h-model');
         const pred1hTime = document.getElementById('pred-1h-time');
+        const pred1hTarget = document.getElementById('pred-1h-target');
         const pred3hPrice = document.getElementById('pred-3h-price');
         const pred3hReturn = document.getElementById('pred-3h-return');
         const pred3hModel = document.getElementById('pred-3h-model');
         const pred3hTime = document.getElementById('pred-3h-time');
+        const pred3hTarget = document.getElementById('pred-3h-target');
         const pred5hPrice = document.getElementById('pred-5h-price');
         const pred5hReturn = document.getElementById('pred-5h-return');
         const pred5hModel = document.getElementById('pred-5h-model');
         const pred5hTime = document.getElementById('pred-5h-time');
+        const pred5hTarget = document.getElementById('pred-5h-target');
         const pred1dPrice = document.getElementById('pred-1d-price');
         const pred1dReturn = document.getElementById('pred-1d-return');
         const pred1dModel = document.getElementById('pred-1d-model');
         const pred1dTime = document.getElementById('pred-1d-time');
+        const pred1dTarget = document.getElementById('pred-1d-target');
         const backtestBody = document.getElementById('backtest-body');
 
         const istFormatter = new Intl.DateTimeFormat('en-IN', {
@@ -463,6 +471,14 @@
             return istFormatter.format(date) + ' IST';
         }
 
+        function addMinutes(isoString, minutes) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            if (Number.isNaN(date.getTime())) return '--';
+            const target = new Date(date.getTime() + minutes * 60000);
+            return formatIst(target.toISOString());
+        }
+
         function freshnessText(seconds, delayed) {
             if (typeof seconds !== 'number') return 'Updated --';
             return delayed ? `Updated ${seconds} sec ago (delayed)` : `Updated ${seconds} sec ago`;
@@ -483,12 +499,13 @@
             el.style.width = `${v}%`;
         }
 
-        function setPrediction(elPrice, elReturn, elModel, elTime, pred) {
+        function setPrediction(elPrice, elReturn, elModel, elTime, elTarget, pred, baseTs, horizonMin) {
             if (!pred) {
                 elPrice.textContent = '--';
                 elReturn.textContent = 'Return: --';
                 elModel.textContent = 'Model: --';
                 elTime.textContent = 'Updated: --';
+                elTarget.textContent = 'Prediction for: --';
                 return;
             }
             elPrice.textContent = pred.predicted_price?.toFixed(2) ?? '--';
@@ -496,6 +513,7 @@
             elReturn.textContent = `Return: ${retPct}%`;
             elModel.textContent = `Model: ${pred.model_name || '--'}`;
             elTime.textContent = pred.created_at ? `Updated: ${formatIst(pred.created_at)}` : 'Updated: --';
+            elTarget.textContent = baseTs ? `Prediction for: ${addMinutes(baseTs, horizonMin)}` : 'Prediction for: --';
         }
 
         async function refreshQuote() {
@@ -611,10 +629,11 @@
                 preds.forEach((pred) => {
                     byHorizon[pred.horizon] = pred;
                 });
-                setPrediction(pred1hPrice, pred1hReturn, pred1hModel, pred1hTime, byHorizon['1h']);
-                setPrediction(pred3hPrice, pred3hReturn, pred3hModel, pred3hTime, byHorizon['3h']);
-                setPrediction(pred5hPrice, pred5hReturn, pred5hModel, pred5hTime, byHorizon['5h']);
-                setPrediction(pred1dPrice, pred1dReturn, pred1dModel, pred1dTime, byHorizon['1d']);
+                const baseTs = data.last_ts;
+                setPrediction(pred1hPrice, pred1hReturn, pred1hModel, pred1hTime, pred1hTarget, byHorizon['1h'], baseTs, 60);
+                setPrediction(pred3hPrice, pred3hReturn, pred3hModel, pred3hTime, pred3hTarget, byHorizon['3h'], baseTs, 180);
+                setPrediction(pred5hPrice, pred5hReturn, pred5hModel, pred5hTime, pred5hTarget, byHorizon['5h'], baseTs, 300);
+                setPrediction(pred1dPrice, pred1dReturn, pred1dModel, pred1dTime, pred1dTarget, byHorizon['1d'], baseTs, 1440);
 
                 if (data.backtest) {
                     const rows = Object.keys(data.backtest).map((key) => {
