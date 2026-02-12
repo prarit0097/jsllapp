@@ -1,4 +1,5 @@
 from collections import defaultdict
+import sys
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -13,8 +14,17 @@ def _normalize(text):
     return ' '.join((text or '').lower().split())
 
 
+def _is_testing():
+    return 'test' in sys.argv
+
+
 class Command(BaseCommand):
     help = 'Reclassify announcements and set dedupe_key/low_priority.'
+
+    def _should_print(self):
+        if _is_testing() and getattr(self.stdout, '_out', None) is sys.stdout:
+            return False
+        return True
 
     def handle(self, *args, **options):
         total = Announcement.objects.count()
@@ -52,33 +62,34 @@ class Command(BaseCommand):
         high_impact_calendar = high_impact_queryset(days=7, use_calendar_days=True)
         latest = high_impact_rolling.order_by('-published_at').first()
 
-        self.stdout.write(f"Total announcements: {total}")
-        self.stdout.write(f"High impact (7d, rolling_168h): {high_impact_rolling.count()}")
-        self.stdout.write(f"High impact (7d, calendar_days): {high_impact_calendar.count()}")
-        if latest:
-            ist = timezone.localtime(latest.published_at)
-            self.stdout.write(
-                f"Latest high impact: {latest.headline} (UTC={latest.published_at}, IST={ist})"
-            )
+        if self._should_print():
+            self.stdout.write(f"Total announcements: {total}")
+            self.stdout.write(f"High impact (7d, rolling_168h): {high_impact_rolling.count()}")
+            self.stdout.write(f"High impact (7d, calendar_days): {high_impact_calendar.count()}")
+            if latest:
+                ist = timezone.localtime(latest.published_at)
+                self.stdout.write(
+                    f"Latest high impact: {latest.headline} (UTC={latest.published_at}, IST={ist})"
+                )
 
-        self.stdout.write("\nMost recent announcements (top 15):")
-        recent = Announcement.objects.order_by('-published_at')[:15]
-        for ann in recent:
-            ist = timezone.localtime(ann.published_at)
-            self.stdout.write(
-                f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
-            )
+            self.stdout.write("\nMost recent announcements (top 15):")
+            recent = Announcement.objects.order_by('-published_at')[:15]
+            for ann in recent:
+                ist = timezone.localtime(ann.published_at)
+                self.stdout.write(
+                    f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
+                )
 
-        keywords = ('outcome of board meeting', 'unaudited', 'financial results')
-        matches = [
-            ann for ann in Announcement.objects.all().iterator()
-            if any(key in ann.headline.lower() for key in keywords)
-        ]
-        self.stdout.write("\nMatches for board meeting/results keywords:")
-        if not matches:
-            self.stdout.write("- None found in DB")
-        for ann in matches:
-            ist = timezone.localtime(ann.published_at)
-            self.stdout.write(
-                f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
-            )
+            keywords = ('outcome of board meeting', 'unaudited', 'financial results')
+            matches = [
+                ann for ann in Announcement.objects.all().iterator()
+                if any(key in ann.headline.lower() for key in keywords)
+            ]
+            self.stdout.write("\nMatches for board meeting/results keywords:")
+            if not matches:
+                self.stdout.write("- None found in DB")
+            for ann in matches:
+                ist = timezone.localtime(ann.published_at)
+                self.stdout.write(
+                    f"- {ann.published_at} / IST {ist} | {ann.type} | impact={ann.impact_score} | low={ann.low_priority} | {ann.headline}"
+                )
