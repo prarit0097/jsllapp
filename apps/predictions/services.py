@@ -67,11 +67,20 @@ class ModelBundle:
     std: Optional[np.ndarray]
     feature_names: List[str]
     samples: int
+    residual_std: Optional[float]
+
+    def _transform(self, X: np.ndarray) -> np.ndarray:
+        if self.mean is None or self.std is None:
+            return X
+        return (X - self.mean) / self.std
 
     def predict(self, x: np.ndarray) -> float:
-        if self.mean is not None and self.std is not None:
-            x = (x - self.mean) / self.std
-        return float(self.model.predict([x])[0])
+        x = np.asarray(x)
+        return float(self.model.predict([self._transform(x)])[0])
+
+    def predict_many(self, X: np.ndarray) -> np.ndarray:
+        X = np.asarray(X)
+        return np.asarray(self.model.predict(self._transform(X)))
 
 
 def _normalize_features(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -106,6 +115,9 @@ def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
             return X @ self.coef + self.intercept
 
     model = _Linear(coef, intercept)
+    preds = model.predict(Xn)
+    residual_std = float(np.std(y - preds)) if len(y) else None
+
     return ModelBundle(
         model=model,
         model_name='ridge_v1',
@@ -113,6 +125,7 @@ def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
         std=std,
         feature_names=list(FEATURE_COLUMNS),
         samples=len(y),
+        residual_std=residual_std,
     )
 
 
@@ -130,6 +143,9 @@ def _fit_gbr_bundle(X: np.ndarray, y: np.ndarray) -> Optional[ModelBundle]:
         random_state=42,
     )
     model.fit(X, y)
+    preds = model.predict(X)
+    residual_std = float(np.std(y - preds)) if len(y) else None
+
     return ModelBundle(
         model=model,
         model_name='gbr_v1',
@@ -137,6 +153,7 @@ def _fit_gbr_bundle(X: np.ndarray, y: np.ndarray) -> Optional[ModelBundle]:
         std=None,
         feature_names=list(FEATURE_COLUMNS),
         samples=len(y),
+        residual_std=residual_std,
     )
 
 
@@ -342,6 +359,14 @@ def train_models(df: pd.DataFrame) -> Dict[str, Optional[ModelBundle]]:
     return models
 
 
+def _confidence_from_residual(residual_std: Optional[float]) -> Optional[float]:
+    if residual_std is None:
+        return None
+    baseline = 0.02
+    score = 1.0 - min(1.0, residual_std / baseline)
+    return max(0.0, score)
+
+
 def generate_latest_predictions() -> List[PricePrediction]:
     latest = Ohlc1m.objects.order_by('-ts').first()
     if not latest:
@@ -365,9 +390,13 @@ def generate_latest_predictions() -> List[PricePrediction]:
             if model is None or np.isnan(feature_vals).any():
                 predicted_return = 0.0
                 model_name = 'baseline_v1'
+                confidence = None
+                residual_std = None
             else:
                 predicted_return = model.predict(feature_vals)
                 model_name = model.model_name
+                confidence = _confidence_from_residual(model.residual_std)
+                residual_std = model.residual_std
 
             predicted_price = latest_row['close'] * (1.0 + predicted_return)
             obj, _created = PricePrediction.objects.update_or_create(
@@ -378,9 +407,10 @@ def generate_latest_predictions() -> List[PricePrediction]:
                     'predicted_price': float(predicted_price),
                     'last_close': float(latest_row['close']),
                     'model_name': model_name,
-                    'confidence': None,
+                    'confidence': confidence,
                 },
             )
+            obj._residual_std = residual_std
             predictions.append(obj)
 
     return predictions
@@ -429,10 +459,7 @@ def run_backtest_and_store(
 
             X = test_subset[FEATURE_COLUMNS].to_numpy(dtype=float)
             y_true = test_subset[y_col].to_numpy(dtype=float)
-            preds = []
-            for row in X:
-                preds.append(model.predict(row))
-            preds = np.array(preds)
+            preds = model.predict_many(X)
             mae = float(np.mean(np.abs(preds - y_true)))
             dir_acc = float(np.mean(np.sign(preds) == np.sign(y_true)))
 

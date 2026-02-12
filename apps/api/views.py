@@ -477,12 +477,18 @@ class PredictionsLatestView(APIView):
         }
         payload = []
         for pred in preds:
+            confidence = pred.confidence
             payload.append(
                 {
                     'horizon': horizon_map.get(pred.horizon_min, str(pred.horizon_min)),
                     'horizon_min': pred.horizon_min,
                     'predicted_return': pred.predicted_return,
                     'predicted_price': pred.predicted_price,
+                    'predicted_return_low': None,
+                    'predicted_return_high': None,
+                    'predicted_price_low': None,
+                    'predicted_price_high': None,
+                    'confidence': confidence,
                     'model_name': pred.model_name,
                     'created_at': pred.created_at,
                 }
