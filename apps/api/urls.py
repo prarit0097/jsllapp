@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -14,6 +14,7 @@ from .views import (
     NewsView,
     Ohlc1mView,
     PipelineStatusView,
+    ScoresLatestView,
 )
 
 urlpatterns = [
@@ -25,6 +26,7 @@ urlpatterns = [
     path('jsll/news', NewsView.as_view(), name='news'),
     path('jsll/announcements', AnnouncementsView.as_view(), name='announcements'),
     path('jsll/events/summary', EventsSummaryView.as_view(), name='events-summary'),
+    path('jsll/scores/latest', ScoresLatestView.as_view(), name='scores-latest'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),

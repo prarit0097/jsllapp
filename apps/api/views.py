@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -18,8 +18,10 @@ from apps.api.serializers import (
     NewsItemSerializer,
     OhlcCandleSerializer,
     PipelineStatusSerializer,
+    ScoresLatestSerializer,
 )
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
+from apps.features.models import SignalScore
 from apps.market.market_time import (
     compute_thresholds,
     is_within_today_session_end,
@@ -379,5 +381,38 @@ class EventsSummaryView(APIView):
                 'latest_high_impact': latest_payload,
                 'announcements_raw_7d': announcements_last_7d.count(),
                 'last_fetch_run': _serialize_events_run(last_fetch_run),
+            }
+        )
+
+
+class ScoresLatestView(APIView):
+    serializer_class = ScoresLatestSerializer
+
+    @extend_schema(responses=ScoresLatestSerializer)
+    def get(self, request):
+        latest = SignalScore.objects.order_by('-ts').first()
+        if not latest:
+            return Response(
+                {
+                    'ts': None,
+                    'ts_ist': None,
+                    'scores': {},
+                    'explain': {},
+                }
+            )
+
+        return Response(
+            {
+                'ts': latest.ts,
+                'ts_ist': _format_market_time(latest.ts),
+                'scores': {
+                    'price_action': latest.price_action_score,
+                    'volume': latest.volume_score,
+                    'news': latest.news_score,
+                    'announcements': latest.announcements_score,
+                    'regime': latest.regime_score,
+                    'overall': latest.overall_score,
+                },
+                'explain': latest.explain_json,
             }
         )

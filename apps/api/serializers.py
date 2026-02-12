@@ -1,4 +1,4 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 
 
 class HealthResponseSerializer(serializers.Serializer):
@@ -83,3 +83,10 @@ class EventsSummarySerializer(serializers.Serializer):
     latest_high_impact = serializers.DictField(allow_null=True)
     announcements_raw_7d = serializers.IntegerField()
     last_fetch_run = serializers.DictField(allow_null=True)
+
+
+class ScoresLatestSerializer(serializers.Serializer):
+    ts = serializers.DateTimeField(allow_null=True)
+    ts_ist = serializers.CharField(allow_null=True)
+    scores = serializers.DictField()
+    explain = serializers.DictField()
