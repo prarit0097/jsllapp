@@ -12,3 +12,7 @@ venv/
 
 # Env files
 .env
+
+# Celery / logs
+celerybeat-schedule.*
+*.log
