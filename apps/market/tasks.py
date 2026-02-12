@@ -21,12 +21,11 @@ def is_market_open(current_time=None):
 
 @shared_task
 def ingest_1m_task():
+    if not is_market_open():
+        return {'skipped': True, 'reason': 'market_closed'}
+
     logger.info('Ingest task started')
     try:
-        if not is_market_open():
-            logger.info('Market closed. Skipping ingestion.')
-            return 'market_closed'
-
         from apps.market.providers.yfinance_download_provider import (
             YFinanceDownloadProvider,
         )

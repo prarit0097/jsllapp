@@ -294,9 +294,9 @@ class AnnouncementTests(TestCase):
 class IngestionTests(TestCase):
     def test_ingest_with_mock_provider_creates_candles(self):
         provider = MockPriceProvider()
-        created = ingest_1m_candles(provider)
-        self.assertGreater(created, 0)
-        self.assertEqual(Ohlc1m.objects.count(), created)
+        result = ingest_1m_candles(provider)
+        self.assertGreater(result['saved'], 0)
+        self.assertEqual(Ohlc1m.objects.count(), result['saved'])
 
     def test_duplicate_ingest_does_not_duplicate(self):
         provider = MockPriceProvider()
@@ -391,6 +391,68 @@ class IngestionTests(TestCase):
         self.assertGreater(Ohlc1m.objects.count(), 0)
         self.assertTrue(run.primary_ok)
         self.assertIsNotNone(meta['fetched_end_ts'])
+
+    def test_ingest_early_exit_no_new_candles(self):
+        now = timezone.now().replace(second=0, microsecond=0)
+        Ohlc1m.objects.create(
+            ts=now,
+            open=100.0,
+            high=101.0,
+            low=99.0,
+            close=100.5,
+            volume=10.0,
+            source='primary',
+        )
+        candles = [
+            {
+                'ts': now,
+                'open': 100.0,
+                'high': 101.0,
+                'low': 99.0,
+                'close': 100.5,
+                'volume': 10.0,
+                'source': 'primary',
+            }
+        ]
+        provider = DummyProvider(candles)
+        result = ingest_1m_candles(provider)
+        self.assertTrue(result['no_new_candles'])
+        self.assertEqual(result['saved'], 0)
+
+    def test_duplicate_count_filtered_by_db_latest(self):
+        now = timezone.now().replace(second=0, microsecond=0)
+        Ohlc1m.objects.create(
+            ts=now,
+            open=100.0,
+            high=101.0,
+            low=99.0,
+            close=100.5,
+            volume=10.0,
+            source='primary',
+        )
+        candles = [
+            {
+                'ts': now,
+                'open': 100.0,
+                'high': 101.0,
+                'low': 99.0,
+                'close': 100.5,
+                'volume': 10.0,
+                'source': 'primary',
+            },
+            {
+                'ts': now + timedelta(minutes=1),
+                'open': 101.0,
+                'high': 102.0,
+                'low': 100.0,
+                'close': 101.5,
+                'volume': 12.0,
+                'source': 'primary',
+            },
+        ]
+        provider = DummyProvider(candles)
+        result = ingest_1m_candles(provider)
+        self.assertGreaterEqual(result['already_exists_count'], 1)
 
     def test_is_market_open_basic(self):
         now = timezone.now().replace(hour=10, minute=0)
