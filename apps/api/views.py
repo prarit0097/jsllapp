@@ -86,10 +86,12 @@ def _pipeline_status(latest, candles_last_60m):
     tz = ZoneInfo(settings.JSLL_MARKET_TZ)
     now_ist = timezone.now().astimezone(tz)
     state = market_state(now_ist)
-    freshness_sec, min_candles_60m = compute_thresholds(now_ist)
+    _freshness_sec, min_candles_60m = compute_thresholds(now_ist)
+    delay_threshold = settings.JSLL_PRICE_DELAY_SEC
 
     now_server, seconds_since = _freshness(latest)
-    freshness_ok = latest is not None and seconds_since is not None and seconds_since <= freshness_sec
+    delayed = latest is None or seconds_since is None or seconds_since > delay_threshold
+    freshness_ok = not delayed
     completeness_ok = candles_last_60m >= min_candles_60m
 
     if state == 'CLOSED':
@@ -97,7 +99,7 @@ def _pipeline_status(latest, candles_last_60m):
     else:
         status = 'ok' if (freshness_ok and completeness_ok) else 'degraded'
 
-    reason = f"freshness={seconds_since}s, candles_60m={candles_last_60m}"
+    reason = f"delayed={delayed}, freshness={seconds_since}s, candles_60m={candles_last_60m}"
 
     return {
         'market_state': state,
@@ -106,7 +108,7 @@ def _pipeline_status(latest, candles_last_60m):
         'status': status,
         'reason': reason,
         'thresholds': {
-            'freshness_sec': freshness_sec,
+            'delay_threshold_sec': delay_threshold,
             'min_candles_60m': min_candles_60m,
         },
         'now_server_time': now_server,

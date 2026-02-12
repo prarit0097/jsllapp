@@ -21,6 +21,7 @@ def is_market_open(current_time=None):
 
 @shared_task
 def ingest_1m_task():
+    logger.info('Ingest task started')
     try:
         if not is_market_open():
             logger.info('Market closed. Skipping ingestion.')
@@ -31,18 +32,25 @@ def ingest_1m_task():
         )
         from apps.market.providers.yfinance_provider import YFinanceHistoryProvider
         from apps.market.services import ingest_1m_candles_multi
+        from apps.market.models import Ohlc1m
 
         primary = YFinanceHistoryProvider()
         fallback = YFinanceDownloadProvider()
         run = ingest_1m_candles_multi(primary, fallback)
+        latest = Ohlc1m.objects.order_by('-ts').first()
+        latest_ts = latest.ts if latest else None
         logger.info(
-            'Ingest summary primary_ok=%s fallback_ok=%s saved=%s missing=%s outliers=%s',
+            'Ingest summary primary_ok=%s fallback_ok=%s fetched_primary=%s fetched_fallback=%s saved=%s missing=%s outliers=%s latest_ts=%s',
             run.primary_ok,
             run.fallback_ok,
+            run.candles_fetched_primary,
+            run.candles_fetched_fallback,
             run.candles_saved,
             run.missing_filled,
             run.outliers_rejected,
+            latest_ts,
         )
+        logger.info('Ingest task finished')
         return 'ok'
     except Exception as exc:
         logger.exception('Ingest task failed: %s', exc)
