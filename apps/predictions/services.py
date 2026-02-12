@@ -21,22 +21,34 @@ FEATURE_COLUMNS = [
     'r5',
     'r15',
     'r60',
+    'r120',
     'vol_std_5',
     'vol_std_15',
     'vol_std_60',
+    'vol_std_120',
     'mom_15',
     'mom_60',
+    'mom_120',
     'range_mean_15',
     'range_mean_60',
+    'range_mean_120',
     'vol_mean_15',
     'vol_mean_60',
+    'vol_mean_120',
+    'ann_high_count_2h',
     'ann_high_count_24h',
+    'ann_high_count_7d',
+    'ann_high_sum_2h',
     'ann_high_sum_24h',
+    'ann_high_sum_7d',
     'ann_last_impact',
     'ann_results_flag_7d',
+    'news_count_2h',
     'news_count_24h',
+    'news_sent_avg_2h',
     'news_sent_avg_24h',
     'realized_vol_60m',
+    'realized_vol_120m',
 ]
 
 HORIZONS = {
@@ -49,12 +61,17 @@ HORIZONS = {
 
 @dataclass
 class ModelBundle:
-    coef: np.ndarray
-    intercept: float
-    mean: np.ndarray
-    std: np.ndarray
+    model: object
+    model_name: str
+    mean: Optional[np.ndarray]
+    std: Optional[np.ndarray]
     feature_names: List[str]
     samples: int
+
+    def predict(self, x: np.ndarray) -> float:
+        if self.mean is not None and self.std is not None:
+            x = (x - self.mean) / self.std
+        return float(self.model.predict([x])[0])
 
 
 def _normalize_features(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -75,9 +92,52 @@ def _fit_ridge(X: np.ndarray, y: np.ndarray, alpha: float = 1.0) -> Tuple[np.nda
     return coef, intercept
 
 
-def _predict(model: ModelBundle, x: np.ndarray) -> float:
-    xn = (x - model.mean) / model.std
-    return float(model.intercept + xn @ model.coef)
+def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
+    Xn, mean, std = _normalize_features(X)
+    coef, intercept = _fit_ridge(Xn, y)
+
+    class _Linear:
+        def __init__(self, coef, intercept):
+            self.coef = coef
+            self.intercept = intercept
+
+        def predict(self, X):
+            X = np.asarray(X)
+            return X @ self.coef + self.intercept
+
+    model = _Linear(coef, intercept)
+    return ModelBundle(
+        model=model,
+        model_name='ridge_v1',
+        mean=mean,
+        std=std,
+        feature_names=list(FEATURE_COLUMNS),
+        samples=len(y),
+    )
+
+
+def _fit_gbr_bundle(X: np.ndarray, y: np.ndarray) -> Optional[ModelBundle]:
+    try:
+        from sklearn.ensemble import GradientBoostingRegressor
+    except Exception:
+        return None
+
+    model = GradientBoostingRegressor(
+        n_estimators=200,
+        learning_rate=0.05,
+        max_depth=3,
+        subsample=0.9,
+        random_state=42,
+    )
+    model.fit(X, y)
+    return ModelBundle(
+        model=model,
+        model_name='gbr_v1',
+        mean=None,
+        std=None,
+        feature_names=list(FEATURE_COLUMNS),
+        samples=len(y),
+    )
 
 
 def _build_cumulative_window(ts_index, events_df, value_col, window):
@@ -113,16 +173,19 @@ def _add_event_features(df: pd.DataFrame) -> pd.DataFrame:
 
     ann_df = pd.DataFrame(list(ann_qs))
     if ann_df.empty:
+        df['ann_high_count_2h'] = 0
         df['ann_high_count_24h'] = 0
+        df['ann_high_count_7d'] = 0
+        df['ann_high_sum_2h'] = 0.0
         df['ann_high_sum_24h'] = 0.0
+        df['ann_high_sum_7d'] = 0.0
         df['ann_last_impact'] = 0.0
         df['ann_results_flag_7d'] = 0
         return df
 
     ann_df['published_at'] = pd.to_datetime(ann_df['published_at'], utc=True)
     ann_df = ann_df.sort_values('published_at')
-    ann_df['high_flag'] = ann_df['impact_score'] >= 10
-    ann_df['high_flag'] = ann_df['high_flag'].astype(int)
+    ann_df['high_flag'] = (ann_df['impact_score'] >= 10).astype(int)
 
     ann_df['headline_lower'] = ann_df['headline'].str.lower()
     ann_df['results_flag'] = (
@@ -131,8 +194,12 @@ def _add_event_features(df: pd.DataFrame) -> pd.DataFrame:
     ).astype(int)
 
     ts_index = df.index
+    df['ann_high_count_2h'] = _build_cumulative_window(ts_index, ann_df, 'high_flag', pd.Timedelta(hours=2))
     df['ann_high_count_24h'] = _build_cumulative_window(ts_index, ann_df, 'high_flag', pd.Timedelta(hours=24))
+    df['ann_high_count_7d'] = _build_cumulative_window(ts_index, ann_df, 'high_flag', pd.Timedelta(days=7))
+    df['ann_high_sum_2h'] = _build_cumulative_window(ts_index, ann_df, 'impact_score', pd.Timedelta(hours=2))
     df['ann_high_sum_24h'] = _build_cumulative_window(ts_index, ann_df, 'impact_score', pd.Timedelta(hours=24))
+    df['ann_high_sum_7d'] = _build_cumulative_window(ts_index, ann_df, 'impact_score', pd.Timedelta(days=7))
     df['ann_results_flag_7d'] = (
         _build_cumulative_window(ts_index, ann_df, 'results_flag', pd.Timedelta(days=7)) > 0
     ).astype(int)
@@ -161,7 +228,9 @@ def _add_news_features(df: pd.DataFrame) -> pd.DataFrame:
 
     news_df = pd.DataFrame(list(news_qs))
     if news_df.empty:
+        df['news_count_2h'] = 0
         df['news_count_24h'] = 0
+        df['news_sent_avg_2h'] = 0.0
         df['news_sent_avg_24h'] = 0.0
         return df
 
@@ -171,10 +240,14 @@ def _add_news_features(df: pd.DataFrame) -> pd.DataFrame:
     news_df['sent_sum'] = news_df['sentiment']
 
     ts_index = df.index
+    count_2h = _build_cumulative_window(ts_index, news_df, 'count_flag', pd.Timedelta(hours=2))
     count_24h = _build_cumulative_window(ts_index, news_df, 'count_flag', pd.Timedelta(hours=24))
+    sum_2h = _build_cumulative_window(ts_index, news_df, 'sent_sum', pd.Timedelta(hours=2))
     sum_24h = _build_cumulative_window(ts_index, news_df, 'sent_sum', pd.Timedelta(hours=24))
 
+    df['news_count_2h'] = count_2h
     df['news_count_24h'] = count_24h
+    df['news_sent_avg_2h'] = np.where(count_2h > 0, sum_2h / count_2h, 0.0)
     df['news_sent_avg_24h'] = np.where(count_24h > 0, sum_24h / count_24h, 0.0)
     return df
 
@@ -195,22 +268,28 @@ def build_features_dataframe(start_ts, end_ts) -> pd.DataFrame:
     df['r5'] = df['close'].pct_change(5)
     df['r15'] = df['close'].pct_change(15)
     df['r60'] = df['close'].pct_change(60)
+    df['r120'] = df['close'].pct_change(120)
 
     df['vol_std_5'] = df['r1'].rolling(5).std()
     df['vol_std_15'] = df['r1'].rolling(15).std()
     df['vol_std_60'] = df['r1'].rolling(60).std()
+    df['vol_std_120'] = df['r1'].rolling(120).std()
 
     df['mom_15'] = df['r1'].rolling(15).sum()
     df['mom_60'] = df['r1'].rolling(60).sum()
+    df['mom_120'] = df['r1'].rolling(120).sum()
 
     rng = (df['high'] - df['low']) / df['close'].replace(0, np.nan)
     df['range_mean_15'] = rng.rolling(15).mean()
     df['range_mean_60'] = rng.rolling(60).mean()
+    df['range_mean_120'] = rng.rolling(120).mean()
 
     df['vol_mean_15'] = df['volume'].rolling(15).mean()
     df['vol_mean_60'] = df['volume'].rolling(60).mean()
+    df['vol_mean_120'] = df['volume'].rolling(120).mean()
 
     df['realized_vol_60m'] = df['r1'].rolling(60).std()
+    df['realized_vol_120m'] = df['r1'].rolling(120).std()
 
     df = _add_event_features(df)
     df = _add_news_features(df)
@@ -245,30 +324,22 @@ def train_models(df: pd.DataFrame) -> Dict[str, Optional[ModelBundle]]:
     if df.empty:
         return {k: None for k in HORIZONS}
 
-    for label, horizon in HORIZONS.items():
+    for label in HORIZONS:
         y_col = f"y_{label}"
         subset = df.dropna(subset=FEATURE_COLUMNS + [y_col])
-        if len(subset) < 50:
+        if len(subset) < 150:
             models[label] = None
             continue
 
         X = subset[FEATURE_COLUMNS].to_numpy(dtype=float)
         y = subset[y_col].to_numpy(dtype=float)
-        Xn, mean, std = _normalize_features(X)
-        coef, intercept = _fit_ridge(Xn, y)
-        models[label] = ModelBundle(
-            coef=coef,
-            intercept=intercept,
-            mean=mean,
-            std=std,
-            feature_names=list(FEATURE_COLUMNS),
-            samples=len(subset),
-        )
+
+        model = _fit_gbr_bundle(X, y)
+        if model is None:
+            model = _fit_ridge_bundle(X, y)
+        models[label] = model
+
     return models
-
-
-def _model_name(model: Optional[ModelBundle]) -> str:
-    return 'ridge_v1' if model else 'baseline_v1'
 
 
 def generate_latest_predictions() -> List[PricePrediction]:
@@ -276,7 +347,7 @@ def generate_latest_predictions() -> List[PricePrediction]:
     if not latest:
         return []
 
-    start_ts = latest.ts - timedelta(days=120)
+    start_ts = latest.ts - timedelta(days=180)
     df = build_features_dataframe(start_ts, latest.ts)
     df = build_labels(df)
     models = train_models(df)
@@ -293,8 +364,10 @@ def generate_latest_predictions() -> List[PricePrediction]:
             feature_vals = latest_row[FEATURE_COLUMNS].to_numpy(dtype=float)
             if model is None or np.isnan(feature_vals).any():
                 predicted_return = 0.0
+                model_name = 'baseline_v1'
             else:
-                predicted_return = _predict(model, feature_vals)
+                predicted_return = model.predict(feature_vals)
+                model_name = model.model_name
 
             predicted_price = latest_row['close'] * (1.0 + predicted_return)
             obj, _created = PricePrediction.objects.update_or_create(
@@ -304,7 +377,7 @@ def generate_latest_predictions() -> List[PricePrediction]:
                     'predicted_return': float(predicted_return),
                     'predicted_price': float(predicted_price),
                     'last_close': float(latest_row['close']),
-                    'model_name': _model_name(model),
+                    'model_name': model_name,
                     'confidence': None,
                 },
             )
@@ -321,7 +394,7 @@ def run_backtest_and_store(
     if not latest:
         return None
 
-    start_ts = latest.ts - timedelta(days=180)
+    start_ts = latest.ts - timedelta(days=240)
     df = build_features_dataframe(start_ts, latest.ts)
     df = build_labels(df)
     if df.empty:
@@ -358,7 +431,7 @@ def run_backtest_and_store(
             y_true = test_subset[y_col].to_numpy(dtype=float)
             preds = []
             for row in X:
-                preds.append(_predict(model, row))
+                preds.append(model.predict(row))
             preds = np.array(preds)
             mae = float(np.mean(np.abs(preds - y_true)))
             dir_acc = float(np.mean(np.sign(preds) == np.sign(y_true)))
