@@ -1,4 +1,4 @@
-﻿from collections import defaultdict
+from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -6,6 +6,7 @@ from django.utils import timezone
 from apps.events.models import Announcement
 from apps.events.taxonomy import classify_announcement
 from apps.events.utils import build_announcement_dedupe_key
+from apps.events.services import high_impact_queryset
 
 
 def _normalize(text):
@@ -47,11 +48,13 @@ class Command(BaseCommand):
                     duplicate.impact_score = 0
                     duplicate.save(update_fields=['low_priority', 'impact_score'])
 
-        high_impact_7d = Announcement.objects.filter(impact_score__gte=10, low_priority=False)
-        latest = high_impact_7d.order_by('-published_at').first()
+        high_impact_rolling = high_impact_queryset(days=7)
+        high_impact_calendar = high_impact_queryset(days=7, use_calendar_days=True)
+        latest = high_impact_rolling.order_by('-published_at').first()
 
         self.stdout.write(f"Total announcements: {total}")
-        self.stdout.write(f"High impact (7d): {high_impact_7d.count()}")
+        self.stdout.write(f"High impact (7d, rolling_168h): {high_impact_rolling.count()}")
+        self.stdout.write(f"High impact (7d, calendar_days): {high_impact_calendar.count()}")
         if latest:
             ist = timezone.localtime(latest.published_at)
             self.stdout.write(

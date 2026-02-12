@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -21,6 +21,7 @@ from apps.api.serializers import (
     ScoresLatestSerializer,
 )
 from apps.events.models import Announcement, EventsFetchRun, NewsItem
+from apps.events.services import high_impact_queryset
 from apps.features.models import SignalScore
 from apps.market.market_time import (
     compute_thresholds,
@@ -135,16 +136,11 @@ def dashboard(request):
         avg=Avg('sentiment')
     )['avg']
 
-    now_ist = _ist_now()
-    announcements_7d_since = now_ist - timedelta(days=7)
-    announcements_24h_since = now_ist - timedelta(hours=24)
+    announcements_7d_since = timezone.now() - timedelta(days=7)
+    announcements_24h_since = timezone.now() - timedelta(hours=24)
     announcements_raw_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
-    high_impact_7d = announcements_raw_7d.filter(impact_score__gte=10, low_priority=False)
-    high_impact_24h = Announcement.objects.filter(
-        published_at__gte=announcements_24h_since,
-        impact_score__gte=10,
-        low_priority=False,
-    )
+    high_impact_7d = high_impact_queryset(days=7)
+    high_impact_24h = high_impact_queryset(days=1)
 
     latest_high_impact = high_impact_7d.order_by('-published_at').first()
     last_events_run = EventsFetchRun.objects.first()
@@ -347,14 +343,13 @@ class EventsSummaryView(APIView):
         news_count = news_last_24h.count()
         news_sentiment_avg = news_last_24h.aggregate(avg=Avg('sentiment'))['avg'] or 0.0
 
-        now_ist = _ist_now()
-        announcements_7d_since = now_ist - timedelta(days=7)
-        announcements_24h_since = now_ist - timedelta(hours=24)
+        announcements_7d_since = timezone.now() - timedelta(days=7)
+        announcements_24h_since = timezone.now() - timedelta(hours=24)
         announcements_last_7d = Announcement.objects.filter(published_at__gte=announcements_7d_since)
         announcements_last_24h = Announcement.objects.filter(published_at__gte=announcements_24h_since)
 
-        high_impact_7d = announcements_last_7d.filter(impact_score__gte=10, low_priority=False)
-        high_impact_24h = announcements_last_24h.filter(impact_score__gte=10, low_priority=False)
+        high_impact_7d = high_impact_queryset(days=7)
+        high_impact_24h = high_impact_queryset(days=1)
 
         impact_sum_24h = announcements_last_24h.aggregate(total=Sum('impact_score'))['total'] or 0
         impact_sum_7d = announcements_last_7d.aggregate(total=Sum('impact_score'))['total'] or 0

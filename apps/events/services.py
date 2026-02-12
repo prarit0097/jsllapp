@@ -1,5 +1,6 @@
-﻿from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 import sys
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import IntegrityError
@@ -23,6 +24,26 @@ def _ensure_ist(dt):
 
 def _is_testing():
     return 'test' in sys.argv
+
+
+def high_impact_queryset(days=7, impact_threshold=10, use_calendar_days=False, tz=None):
+    now = timezone.now()
+    if use_calendar_days:
+        tz = tz or ZoneInfo(settings.TIME_ZONE)
+        local_now = timezone.localtime(now, tz)
+        cutoff_date = local_now.date() - timedelta(days=days)
+        return Announcement.objects.filter(
+            published_at__date__gte=cutoff_date,
+            impact_score__gte=impact_threshold,
+            low_priority=False,
+        )
+
+    since = now - timedelta(days=days)
+    return Announcement.objects.filter(
+        published_at__gte=since,
+        impact_score__gte=impact_threshold,
+        low_priority=False,
+    )
 
 
 def fetch_news_rss():
