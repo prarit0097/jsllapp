@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 
 from .data_quality import DataQualityEngine
@@ -28,7 +30,7 @@ def ingest_1m_candles(provider):
     start_ts = None
     limit = None
     if db_latest_ts:
-        start_ts = db_latest_ts - timezone.timedelta(minutes=3)
+        start_ts = db_latest_ts - timedelta(minutes=3)
         limit = 50
 
     batch = _fetch_with_optional_window(provider, start_ts=start_ts, limit=limit)
