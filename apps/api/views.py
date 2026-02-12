@@ -460,6 +460,8 @@ class PredictionsLatestView(APIView):
                 {
                     'last_ts': None,
                     'last_ts_ist': None,
+                    'prediction_base_ts': None,
+                    'prediction_base_ts_ist': None,
                     'last_close': None,
                     'predictions': [],
                     'backtest': None,
@@ -491,8 +493,10 @@ class PredictionsLatestView(APIView):
 
         return Response(
             {
-                'last_ts': latest.ts,
-                'last_ts_ist': _format_market_time(latest.ts),
+                'last_ts': latest.created_at,
+                'last_ts_ist': _format_market_time(latest.created_at),
+                'prediction_base_ts': latest.ts,
+                'prediction_base_ts_ist': _format_market_time(latest.ts),
                 'last_close': latest.last_close,
                 'predictions': payload,
                 'backtest': backtest,

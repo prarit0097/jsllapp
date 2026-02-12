@@ -629,7 +629,7 @@
                 preds.forEach((pred) => {
                     byHorizon[pred.horizon] = pred;
                 });
-                const baseTs = data.last_ts;
+                const baseTs = data.prediction_base_ts || data.last_ts;
                 setPrediction(pred1hPrice, pred1hReturn, pred1hModel, pred1hTime, pred1hTarget, byHorizon['1h'], baseTs, 60);
                 setPrediction(pred3hPrice, pred3hReturn, pred3hModel, pred3hTime, pred3hTarget, byHorizon['3h'], baseTs, 180);
                 setPrediction(pred5hPrice, pred5hReturn, pred5hModel, pred5hTime, pred5hTarget, byHorizon['5h'], baseTs, 300);
