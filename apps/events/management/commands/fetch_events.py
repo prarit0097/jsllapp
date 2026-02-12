@@ -1,4 +1,5 @@
-﻿from django.core.management.base import BaseCommand
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.events.models import EventsFetchRun
@@ -7,6 +8,13 @@ from apps.events.services import fetch_announcements_nse, fetch_news_rss
 
 class Command(BaseCommand):
     help = 'Fetch JSLL events news and announcements.'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--reclassify',
+            action='store_true',
+            help='Run reclassify_announcements after fetching events.',
+        )
 
     def handle(self, *args, **options):
         run = EventsFetchRun.objects.create()
@@ -21,6 +29,7 @@ class Command(BaseCommand):
         except Exception as exc:
             notes.append(f"news_error: {exc}")
 
+        ann_summary = None
         try:
             ann_result = fetch_announcements_nse()
             parsed = ann_result['parsed_count']
@@ -29,14 +38,31 @@ class Command(BaseCommand):
             skipped = ann_result['skipped_duplicates']
             parse_errors = ann_result['parse_errors']
             errors = ann_result['errors']
+            total_processed = created + updated + skipped + parse_errors
 
-            run.announcements_fetched = created
-            run.announcements_ok = (created + updated + skipped) > 0 and not errors
+            run.announcements_fetched = created + updated
+            run.announcements_ok = total_processed > 0 and not errors
             if errors:
                 notes.append(f"announcements_error: {','.join(errors)}")
             notes.append(
-                f"ann_parsed={parsed}, ann_created={created}, ann_updated={updated}, ann_skipped={skipped}, ann_parse_errors={parse_errors}"
+                "ann_parsed={parsed}, ann_created={created}, ann_updated={updated}, "
+                "ann_skipped={skipped}, ann_parse_errors={parse_errors}, ann_total_processed={total_processed}"
+                .format(
+                    parsed=parsed,
+                    created=created,
+                    updated=updated,
+                    skipped=skipped,
+                    parse_errors=parse_errors,
+                    total_processed=total_processed,
+                )
             )
+            ann_summary = {
+                'created': created,
+                'updated': updated,
+                'skipped': skipped,
+                'parse_errors': parse_errors,
+                'total_processed': total_processed,
+            }
         except Exception as exc:
             notes.append(f"announcements_error: {exc}")
 
@@ -46,6 +72,22 @@ class Command(BaseCommand):
 
         self.stdout.write('Events fetch summary')
         self.stdout.write(f"News OK: {run.news_ok} ({run.news_fetched})")
-        self.stdout.write(f"Announcements OK: {run.announcements_ok} ({run.announcements_fetched})")
+        if ann_summary:
+            self.stdout.write(
+                "Announcements OK: {ok} (created={created}, updated={updated}, skipped={skipped}, "
+                "parse_errors={parse_errors}, total_processed={total_processed})".format(
+                    ok=run.announcements_ok,
+                    created=ann_summary['created'],
+                    updated=ann_summary['updated'],
+                    skipped=ann_summary['skipped'],
+                    parse_errors=ann_summary['parse_errors'],
+                    total_processed=ann_summary['total_processed'],
+                )
+            )
+        else:
+            self.stdout.write(f"Announcements OK: {run.announcements_ok} ({run.announcements_fetched})")
         if run.notes:
             self.stdout.write(f"Notes: {run.notes}")
+
+        if options.get('reclassify'):
+            call_command('reclassify_announcements')
