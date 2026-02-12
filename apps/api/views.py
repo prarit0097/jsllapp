@@ -224,6 +224,8 @@ class LatestQuoteView(APIView):
     def get(self, request):
         latest = Ohlc1m.objects.order_by('-ts').first()
         now_server, seconds_since = _freshness(latest)
+        delay_threshold = settings.JSLL_PRICE_DELAY_SEC
+
         if latest is None:
             return Response(
                 {
@@ -232,12 +234,16 @@ class LatestQuoteView(APIView):
                     'last_candle_time': None,
                     'now_server_time': now_server,
                     'seconds_since_last_candle': seconds_since,
+                    'delayed': True,
+                    'delay_threshold_sec': delay_threshold,
                     'status': 'degraded',
                     'last_candle_time_ist': None,
                 }
             )
-        freshness_sec, _min_candles = compute_thresholds(timezone.now().astimezone(ZoneInfo(settings.JSLL_MARKET_TZ)))
-        status = 'ok' if seconds_since is not None and seconds_since <= freshness_sec else 'degraded'
+
+        delayed = seconds_since is None or seconds_since > delay_threshold
+        status = 'degraded' if delayed else 'ok'
+
         return Response(
             {
                 'ticker': settings.JSLL_TICKER,
@@ -245,6 +251,8 @@ class LatestQuoteView(APIView):
                 'last_candle_time': latest.ts,
                 'now_server_time': now_server,
                 'seconds_since_last_candle': seconds_since,
+                'delayed': delayed,
+                'delay_threshold_sec': delay_threshold,
                 'status': status,
                 'last_candle_time_ist': _format_market_time(latest.ts),
             }

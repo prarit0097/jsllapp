@@ -1,4 +1,4 @@
-﻿from rest_framework import serializers
+from rest_framework import serializers
 
 
 class HealthResponseSerializer(serializers.Serializer):
@@ -26,6 +26,8 @@ class LatestQuoteSerializer(serializers.Serializer):
     last_candle_time = serializers.DateTimeField(allow_null=True)
     now_server_time = serializers.DateTimeField(allow_null=True)
     seconds_since_last_candle = serializers.IntegerField(allow_null=True)
+    delayed = serializers.BooleanField()
+    delay_threshold_sec = serializers.IntegerField()
     status = serializers.CharField()
     last_candle_time_ist = serializers.CharField(allow_null=True)
 

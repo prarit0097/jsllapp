@@ -20,6 +20,7 @@ ALLOWED_HOSTS = [
 
 JSLL_TICKER = os.getenv('JSLL_TICKER', 'JSLL.NS')
 JSLL_MARKET_TZ = os.getenv('JSLL_MARKET_TZ', 'Asia/Kolkata')
+JSLL_PRICE_DELAY_SEC = int(os.getenv('JSLL_PRICE_DELAY_SEC', '120'))
 
 INSTALLED_APPS = [
     'django.contrib.admin',

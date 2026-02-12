@@ -1,5 +1,9 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
+from apps.market.models import Ohlc1m
 from apps.market.providers.mock_provider import MockPriceProvider
 from apps.market.services import ingest_1m_candles
 
@@ -31,6 +35,38 @@ class QuoteEndpointTests(APITestCase):
         self.assertIn('now_server_time', payload)
         self.assertIn('seconds_since_last_candle', payload)
         self.assertIn('status', payload)
+        self.assertIn('delayed', payload)
+        self.assertIn('delay_threshold_sec', payload)
+
+    def test_quote_delayed_flag_false_when_fresh(self):
+        ts = timezone.now() - timedelta(seconds=60)
+        Ohlc1m.objects.create(
+            ts=ts,
+            open=100,
+            high=101,
+            low=99,
+            close=100.5,
+            volume=100,
+            source='test',
+        )
+        response = self.client.get('/api/v1/jsll/quote/latest')
+        payload = response.json()
+        self.assertFalse(payload['delayed'])
+
+    def test_quote_delayed_flag_true_when_stale(self):
+        ts = timezone.now() - timedelta(seconds=130)
+        Ohlc1m.objects.create(
+            ts=ts,
+            open=100,
+            high=101,
+            low=99,
+            close=100.5,
+            volume=100,
+            source='test',
+        )
+        response = self.client.get('/api/v1/jsll/quote/latest')
+        payload = response.json()
+        self.assertTrue(payload['delayed'])
 
 
 class OhlcEndpointTests(APITestCase):

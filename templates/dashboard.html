@@ -1,4 +1,4 @@
-﻿{% load tz %}
+{% load tz %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -374,8 +374,12 @@
             pipelineEl.classList.toggle('ok', status === 'ok');
             pipelineEl.classList.toggle('warn', status !== 'ok' && status !== 'closed');
             pipelineEl.classList.toggle('closed', status === 'closed');
-            liveDot.classList.toggle('off', status !== 'ok');
-            livePill.textContent = status === 'ok' ? 'LIVE' : (status === 'closed' ? 'CLOSED' : 'DELAYED');
+        }
+
+        function setPriceStatus(delayed) {
+            const isDelayed = delayed === true;
+            liveDot.classList.toggle('off', isDelayed);
+            livePill.textContent = isDelayed ? 'DELAYED' : 'LIVE';
         }
 
         function formatIst(isoString) {
@@ -385,11 +389,9 @@
             return istFormatter.format(date) + ' IST';
         }
 
-        function freshnessText(seconds, status) {
+        function freshnessText(seconds, delayed) {
             if (typeof seconds !== 'number') return 'Updated --';
-            if (status === 'ok') return `Updated ${seconds} sec ago`;
-            if (status === 'closed') return `Updated ${seconds} sec ago (market closed)`;
-            return `Updated ${seconds} sec ago (market data delayed)`;
+            return delayed ? `Updated ${seconds} sec ago (delayed)` : `Updated ${seconds} sec ago`;
         }
 
         function sentimentBadge(value) {
@@ -420,10 +422,11 @@
                 } else if (data.last_candle_time) {
                     lastCandleEl.textContent = formatIst(data.last_candle_time);
                 }
-                freshnessEl.textContent = freshnessText(data.seconds_since_last_candle, data.status);
-                setStatus(data.status);
+                const delayed = data.delayed === true;
+                freshnessEl.textContent = freshnessText(data.seconds_since_last_candle, delayed);
+                setPriceStatus(delayed);
             } catch (err) {
-                setStatus('degraded');
+                setPriceStatus(true);
             }
         }
 
