@@ -219,44 +219,6 @@
             </div>
         </div>
 
-        <div class="section-title">Signals & Scores</div>
-        <div class="grid">
-            <div class="card">
-                <h2>Overall Score</h2>
-                <div class="value" id="score-overall">--</div>
-                <div class="note" id="score-time">{% if score_ts_ist %}Last score: {{ score_ts_ist }}{% else %}Waiting for first score run...{% endif %}</div>
-                <div class="note" id="score-freshness">{% if score_freshness_sec %}Updated {{ score_freshness_sec }} sec ago{% else %}--{% endif %}</div>
-            </div>
-            <div class="card">
-                <h2>Category Scores</h2>
-                <div class="score-row">
-                    <div class="score-label"><span>Price Action</span><span id="score-price">--</span></div>
-                    <div class="bar"><div class="bar-fill" id="bar-price"></div></div>
-                    <div class="reason" id="reason-price">--</div>
-                </div>
-                <div class="score-row">
-                    <div class="score-label"><span>Volume</span><span id="score-volume">--</span></div>
-                    <div class="bar"><div class="bar-fill" id="bar-volume"></div></div>
-                    <div class="reason" id="reason-volume">--</div>
-                </div>
-                <div class="score-row">
-                    <div class="score-label"><span>Announcements</span><span id="score-announcements">--</span></div>
-                    <div class="bar"><div class="bar-fill" id="bar-announcements"></div></div>
-                    <div class="reason" id="reason-announcements">--</div>
-                </div>
-                <div class="score-row">
-                    <div class="score-label"><span>News</span><span id="score-news">--</span></div>
-                    <div class="bar"><div class="bar-fill" id="bar-news"></div></div>
-                    <div class="reason" id="reason-news">--</div>
-                </div>
-                <div class="score-row">
-                    <div class="score-label"><span>Regime</span><span id="score-regime">--</span></div>
-                    <div class="bar"><div class="bar-fill" id="bar-regime"></div></div>
-                    <div class="reason" id="reason-regime">--</div>
-                </div>
-            </div>
-        </div>
-
         <div class="section-title">Predictions</div>
         <div class="note">Experimental. Not financial advice.</div>
         <div class="grid">
@@ -307,6 +269,44 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <div class="section-title">Signals & Scores</div>
+        <div class="grid">
+            <div class="card">
+                <h2>Overall Score</h2>
+                <div class="value" id="score-overall">--</div>
+                <div class="note" id="score-time">{% if score_ts_ist %}Last score: {{ score_ts_ist }}{% else %}Waiting for first score run...{% endif %}</div>
+                <div class="note" id="score-freshness">{% if score_freshness_sec %}Updated {{ score_freshness_sec }} sec ago{% else %}--{% endif %}</div>
+            </div>
+            <div class="card">
+                <h2>Category Scores</h2>
+                <div class="score-row">
+                    <div class="score-label"><span>Price Action</span><span id="score-price">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-price"></div></div>
+                    <div class="reason" id="reason-price">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Volume</span><span id="score-volume">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-volume"></div></div>
+                    <div class="reason" id="reason-volume">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Announcements</span><span id="score-announcements">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-announcements"></div></div>
+                    <div class="reason" id="reason-announcements">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>News</span><span id="score-news">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-news"></div></div>
+                    <div class="reason" id="reason-news">--</div>
+                </div>
+                <div class="score-row">
+                    <div class="score-label"><span>Regime</span><span id="score-regime">--</span></div>
+                    <div class="bar"><div class="bar-fill" id="bar-regime"></div></div>
+                    <div class="reason" id="reason-regime">--</div>
+                </div>
+            </div>
         </div>
 
         <div class="section-title">Events</div>
