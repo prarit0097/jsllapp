@@ -1,4 +1,5 @@
 ﻿from zoneinfo import ZoneInfo
+import sys
 
 from django.conf import settings
 from django.db import IntegrityError
@@ -18,6 +19,10 @@ def _ensure_ist(dt):
     if timezone.is_naive(dt):
         return dt.replace(tzinfo=ZoneInfo('Asia/Kolkata'))
     return dt.astimezone(ZoneInfo('Asia/Kolkata'))
+
+
+def _is_testing():
+    return 'test' in sys.argv
 
 
 def fetch_news_rss():
@@ -137,7 +142,7 @@ def fetch_announcements_nse(symbol='JSLL'):
         else:
             updated_count += 1
 
-    if error_samples:
+    if error_samples and not _is_testing():
         for sample in error_samples:
             print(
                 'NSE parse failure sample:',
