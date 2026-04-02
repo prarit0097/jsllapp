@@ -100,8 +100,9 @@ def _pipeline_status(latest, candles_last_60m):
     tz = ZoneInfo(settings.JSLL_MARKET_TZ)
     now_ist = timezone.now().astimezone(tz)
     state = market_state(now_ist)
-    _freshness_sec, min_candles_60m = compute_thresholds(now_ist)
-    delay_threshold = settings.JSLL_PRICE_DELAY_SEC
+    freshness_sec, min_candles_60m = compute_thresholds(now_ist)
+    # Use adaptive threshold from compute_thresholds (relaxed near market close)
+    delay_threshold = freshness_sec
 
     now_server, seconds_since = _freshness(latest)
     delayed = latest is None or seconds_since is None or seconds_since > delay_threshold

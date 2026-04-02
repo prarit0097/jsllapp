@@ -177,7 +177,7 @@
         <header>
             <div>
                 <h1>JSLL Market Dashboard</h1>
-                <div class="note">Ingestion runs via scheduler later. Refresh to update.</div>
+                <div class="note">Live monitoring — ingestion, scoring and predictions run automatically.</div>
             </div>
             <div class="actions">
                 <a class="refresh" href="/">Refresh</a>
@@ -625,11 +625,12 @@
                     scoreFreshnessEl.textContent = `Updated ${secs} sec ago`;
                 }
                 const reasons = (data.explain && data.explain.top_reasons) || [];
-                reasonPrice.textContent = reasons[0] || '--';
-                reasonVolume.textContent = reasons[1] || '--';
-                reasonAnnouncements.textContent = reasons[2] || '--';
-                reasonNews.textContent = reasons[1] || '--';
-                reasonRegime.textContent = reasons[2] || '--';
+                const cat = (data.explain && data.explain.category_reasons) || {};
+                reasonPrice.textContent       = cat.price_action    || reasons[0] || '--';
+                reasonVolume.textContent      = cat.volume          || reasons[1] || '--';
+                reasonAnnouncements.textContent = cat.announcements || reasons[2] || '--';
+                reasonNews.textContent        = cat.news            || '--';
+                reasonRegime.textContent      = cat.regime          || '--';
             } catch (err) {
                 scoreTimeEl.textContent = 'Scores unavailable';
             }

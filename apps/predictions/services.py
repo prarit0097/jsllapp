@@ -17,38 +17,31 @@ from .models import PricePrediction, PricePredictionRun
 
 
 FEATURE_COLUMNS = [
-    'r1',
-    'r5',
-    'r15',
-    'r60',
-    'r120',
-    'vol_std_5',
-    'vol_std_15',
-    'vol_std_60',
-    'vol_std_120',
-    'mom_15',
-    'mom_60',
-    'mom_120',
-    'range_mean_15',
-    'range_mean_60',
-    'range_mean_120',
-    'vol_mean_15',
-    'vol_mean_60',
-    'vol_mean_120',
-    'ann_high_count_2h',
-    'ann_high_count_24h',
-    'ann_high_count_7d',
-    'ann_high_sum_2h',
-    'ann_high_sum_24h',
-    'ann_high_sum_7d',
-    'ann_last_impact',
-    'ann_results_flag_7d',
-    'news_count_2h',
-    'news_count_24h',
-    'news_sent_avg_2h',
-    'news_sent_avg_24h',
-    'realized_vol_60m',
-    'realized_vol_120m',
+    # Price returns at multiple lags
+    'r1', 'r5', 'r15', 'r60', 'r120',
+    # Rolling return volatility (std of 1m returns)
+    'vol_std_5', 'vol_std_15', 'vol_std_60', 'vol_std_120',
+    # Rolling momentum (cumulative 1m returns)
+    'mom_15', 'mom_60', 'mom_120',
+    # Rolling mean high-low range ratio
+    'range_mean_15', 'range_mean_60', 'range_mean_120',
+    # Volume z-scores (normalised — replaces raw vol_mean which was scale-distorting)
+    'vol_z_15', 'vol_z_60', 'vol_z_120',
+    # Technical indicators
+    'rsi_14',     # RSI via Wilder EMA
+    'atr_pct',    # ATR as % of close (scale-invariant volatility)
+    'macd_hist',  # MACD histogram / close (normalised momentum signal)
+    'bb_pct_b',   # Bollinger Band %B (0 = lower, 0.5 = mid, 1 = upper)
+    # Intraday context
+    'vwap_dist',        # Close vs session VWAP (intraday mean reversion)
+    'open_to_now_ret',  # Return from session open to current close
+    # Announcement event features
+    'ann_high_count_2h', 'ann_high_count_24h', 'ann_high_count_7d',
+    'ann_high_sum_2h', 'ann_high_sum_24h', 'ann_high_sum_7d',
+    'ann_last_impact', 'ann_results_flag_7d',
+    # News sentiment features
+    'news_count_2h', 'news_count_24h',
+    'news_sent_avg_2h', 'news_sent_avg_24h',
 ]
 
 HORIZONS = {
@@ -56,6 +49,15 @@ HORIZONS = {
     '3h': 180,
     '5h': 300,
     '1d': 1440,
+}
+
+# Out-of-sample residual baseline per horizon.
+# Residual at this level → 0 confidence; 0 residual → 1.0 confidence.
+_CONFIDENCE_BASELINES = {
+    60: 0.005,    # 1h: 0.5% OOS residual = confidence 0
+    180: 0.008,   # 3h
+    300: 0.010,   # 5h
+    1440: 0.020,  # 1d
 }
 
 
@@ -75,20 +77,21 @@ class ModelBundle:
         return (X - self.mean) / self.std
 
     def predict(self, x: np.ndarray) -> float:
-        x = np.asarray(x)
+        x = np.asarray(x, dtype=float)
         return float(self.model.predict([self._transform(x)])[0])
 
     def predict_many(self, X: np.ndarray) -> np.ndarray:
-        X = np.asarray(X)
+        X = np.asarray(X, dtype=float)
         return np.asarray(self.model.predict(self._transform(X)))
 
+
+# ──────────────────────────── Ridge helpers ──────────────────────────────────
 
 def _normalize_features(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     mean = X.mean(axis=0)
     std = X.std(axis=0)
     std = np.where(std == 0, 1.0, std)
-    Xn = (X - mean) / std
-    return Xn, mean, std
+    return (X - mean) / std, mean, std
 
 
 def _fit_ridge(X: np.ndarray, y: np.ndarray, alpha: float = 1.0) -> Tuple[np.ndarray, float]:
@@ -96,14 +99,16 @@ def _fit_ridge(X: np.ndarray, y: np.ndarray, alpha: float = 1.0) -> Tuple[np.nda
     eye = np.eye(Xb.shape[1])
     eye[0, 0] = 0.0
     beta = np.linalg.solve(Xb.T @ Xb + alpha * eye, Xb.T @ y)
-    intercept = float(beta[0])
-    coef = beta[1:]
-    return coef, intercept
+    return beta[1:], float(beta[0])
 
 
 def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
-    Xn, mean, std = _normalize_features(X)
-    coef, intercept = _fit_ridge(Xn, y)
+    n = len(X)
+    split = max(30, int(n * 0.8))
+
+    # Out-of-sample estimate using held-out 20%
+    Xn_tr, mean_tr, std_tr = _normalize_features(X[:split])
+    coef_tr, intercept_tr = _fit_ridge(Xn_tr, y[:split])
 
     class _Linear:
         def __init__(self, coef, intercept):
@@ -111,20 +116,27 @@ def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
             self.intercept = intercept
 
         def predict(self, X):
-            X = np.asarray(X)
-            return X @ self.coef + self.intercept
+            return np.asarray(X) @ self.coef + self.intercept
 
-    model = _Linear(coef, intercept)
-    preds = model.predict(Xn)
-    residual_std = float(np.std(y - preds)) if len(y) else None
+    val_model = _Linear(coef_tr, intercept_tr)
+    if split < n:
+        Xn_val = (X[split:] - mean_tr) / std_tr
+        residual_std = float(np.std(y[split:] - val_model.predict(Xn_val)))
+    else:
+        residual_std = float(np.std(y[:split] - val_model.predict(Xn_tr)))
+
+    # Final model trained on all data for best predictions
+    Xn_full, mean_full, std_full = _normalize_features(X)
+    coef_full, intercept_full = _fit_ridge(Xn_full, y)
+    final_model = _Linear(coef_full, intercept_full)
 
     return ModelBundle(
-        model=model,
-        model_name='ridge_v1',
-        mean=mean,
-        std=std,
+        model=final_model,
+        model_name='ridge_v2',
+        mean=mean_full,
+        std=std_full,
         feature_names=list(FEATURE_COLUMNS),
-        samples=len(y),
+        samples=n,
         residual_std=residual_std,
     )
 
@@ -132,47 +144,119 @@ def _fit_ridge_bundle(X: np.ndarray, y: np.ndarray) -> ModelBundle:
 def _fit_gbr_bundle(X: np.ndarray, y: np.ndarray) -> Optional[ModelBundle]:
     try:
         from sklearn.ensemble import GradientBoostingRegressor
-    except Exception:
+    except ImportError:
         return None
 
-    model = GradientBoostingRegressor(
-        n_estimators=200,
+    n = len(X)
+    split = max(50, int(n * 0.8))
+
+    params = dict(
+        n_estimators=100,
         learning_rate=0.05,
-        max_depth=3,
-        subsample=0.9,
+        max_depth=2,          # Reduced from 3 — prevents leaf memorisation
+        min_samples_leaf=20,  # Each leaf needs >= 20 observations
+        subsample=0.6,        # Strong stochastic regularisation
+        max_features='sqrt',  # Feature subsampling per split
         random_state=42,
     )
-    model.fit(X, y)
-    preds = model.predict(X)
-    residual_std = float(np.std(y - preds)) if len(y) else None
+
+    # Fit on 80% to get an honest out-of-sample residual estimate
+    val_model = GradientBoostingRegressor(**params)
+    val_model.fit(X[:split], y[:split])
+    if split < n:
+        val_preds = val_model.predict(X[split:])
+        residual_std = float(np.std(y[split:] - val_preds))
+    else:
+        residual_std = None
+
+    # Final model on 100% of data for best predictions
+    final_model = GradientBoostingRegressor(**params)
+    final_model.fit(X, y)
 
     return ModelBundle(
-        model=model,
-        model_name='gbr_v1',
+        model=final_model,
+        model_name='gbr_v2',
         mean=None,
         std=None,
         feature_names=list(FEATURE_COLUMNS),
-        samples=len(y),
+        samples=n,
         residual_std=residual_std,
     )
 
 
-def _build_cumulative_window(ts_index, events_df, value_col, window):
+# ─────────────────────── Technical indicator helpers ─────────────────────────
+
+def _rsi_series(close: pd.Series, period: int = 14) -> pd.Series:
+    """RSI using Wilder's EMA (alpha = 1/period). Returns values in [0, 100].
+
+    Uses a small epsilon floor on avg_loss so that pure-uptrend sessions
+    correctly return RSI ≈ 100 rather than NaN→50.
+    """
+    delta = close.diff()
+    gain = delta.clip(lower=0.0)
+    loss = (-delta).clip(lower=0.0)
+    alpha = 1.0 / period
+    avg_gain = gain.ewm(alpha=alpha, adjust=False, min_periods=period).mean()
+    avg_loss = loss.ewm(alpha=alpha, adjust=False, min_periods=period).mean()
+    # clip to a tiny epsilon: pure uptrend → RS very large → RSI ≈ 100
+    rs = avg_gain / avg_loss.clip(lower=1e-10)
+    rsi = 100.0 - 100.0 / (1.0 + rs)
+    # Restore NaN for periods that lack sufficient history (min_periods not met)
+    return rsi.where(avg_gain.notna(), other=50.0)
+
+
+def _atr_pct_series(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    """ATR as percentage of close price — scale-invariant volatility."""
+    high, low, prev_close = df['high'], df['low'], df['close'].shift(1)
+    tr = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()],
+        axis=1,
+    ).max(axis=1)
+    atr = tr.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
+    return (atr / df['close'].replace(0.0, np.nan)).fillna(0.0)
+
+
+def _macd_hist_series(close: pd.Series) -> pd.Series:
+    """MACD histogram normalised by price — scale-free momentum signal."""
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    macd = ema12 - ema26
+    signal = macd.ewm(span=9, adjust=False).mean()
+    return ((macd - signal) / close.replace(0.0, np.nan)).fillna(0.0)
+
+
+def _bb_pct_b_series(close: pd.Series, period: int = 20) -> pd.Series:
+    """Bollinger Band %B: 0 = lower band, 0.5 = midline, 1 = upper band."""
+    mid = close.rolling(period).mean()
+    std = close.rolling(period).std()
+    upper = mid + 2.0 * std
+    lower = mid - 2.0 * std
+    band = (upper - lower).replace(0.0, np.nan)
+    return ((close - lower) / band).fillna(0.5)
+
+
+# ─────────────────────────── Event feature helpers ───────────────────────────
+
+def _build_cumulative_window(
+    ts_index: pd.DatetimeIndex,
+    events_df: pd.DataFrame,
+    value_col: str,
+    window: pd.Timedelta,
+) -> np.ndarray:
+    """Sum of events_df[value_col] in (ts - window, ts] for each ts in ts_index."""
     if events_df.empty:
         return np.zeros(len(ts_index))
 
-    df = events_df.copy()
+    df = events_df[['published_at', value_col]].copy()
     df['cum'] = df[value_col].cumsum()
-    df = df[['published_at', 'cum']].sort_values('published_at')
+    df = df.sort_values('published_at')
 
     ts_df = pd.DataFrame({'ts': ts_index})
-    end = pd.merge_asof(ts_df, df, left_on='ts', right_on='published_at', direction='backward')
+    end = pd.merge_asof(ts_df, df[['published_at', 'cum']], left_on='ts', right_on='published_at', direction='backward')
     start_df = pd.DataFrame({'ts': ts_index - window})
-    start = pd.merge_asof(start_df, df, left_on='ts', right_on='published_at', direction='backward')
+    start = pd.merge_asof(start_df, df[['published_at', 'cum']], left_on='ts', right_on='published_at', direction='backward')
 
-    end_val = end['cum'].fillna(0).to_numpy()
-    start_val = start['cum'].fillna(0).to_numpy()
-    return end_val - start_val
+    return end['cum'].fillna(0.0).to_numpy() - start['cum'].fillna(0.0).to_numpy()
 
 
 def _add_event_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -189,21 +273,19 @@ def _add_event_features(df: pd.DataFrame) -> pd.DataFrame:
     ).values('published_at', 'impact_score', 'type', 'headline')
 
     ann_df = pd.DataFrame(list(ann_qs))
+    _zero_cols = (
+        'ann_high_count_2h', 'ann_high_count_24h', 'ann_high_count_7d',
+        'ann_high_sum_2h', 'ann_high_sum_24h', 'ann_high_sum_7d',
+        'ann_last_impact', 'ann_results_flag_7d',
+    )
     if ann_df.empty:
-        df['ann_high_count_2h'] = 0
-        df['ann_high_count_24h'] = 0
-        df['ann_high_count_7d'] = 0
-        df['ann_high_sum_2h'] = 0.0
-        df['ann_high_sum_24h'] = 0.0
-        df['ann_high_sum_7d'] = 0.0
-        df['ann_last_impact'] = 0.0
-        df['ann_results_flag_7d'] = 0
+        for col in _zero_cols:
+            df[col] = 0
         return df
 
     ann_df['published_at'] = pd.to_datetime(ann_df['published_at'], utc=True)
     ann_df = ann_df.sort_values('published_at')
     ann_df['high_flag'] = (ann_df['impact_score'] >= 10).astype(int)
-
     ann_df['headline_lower'] = ann_df['headline'].str.lower()
     ann_df['results_flag'] = (
         ann_df['type'].isin(['results', 'board_meeting'])
@@ -228,7 +310,7 @@ def _add_event_features(df: pd.DataFrame) -> pd.DataFrame:
         right_on='published_at',
         direction='backward',
     )
-    df['ann_last_impact'] = last['impact_score'].fillna(0).to_numpy()
+    df['ann_last_impact'] = last['impact_score'].fillna(0.0).to_numpy()
     return df
 
 
@@ -245,10 +327,8 @@ def _add_news_features(df: pd.DataFrame) -> pd.DataFrame:
 
     news_df = pd.DataFrame(list(news_qs))
     if news_df.empty:
-        df['news_count_2h'] = 0
-        df['news_count_24h'] = 0
-        df['news_sent_avg_2h'] = 0.0
-        df['news_sent_avg_24h'] = 0.0
+        for col in ('news_count_2h', 'news_count_24h', 'news_sent_avg_2h', 'news_sent_avg_24h'):
+            df[col] = 0
         return df
 
     news_df['published_at'] = pd.to_datetime(news_df['published_at'], utc=True)
@@ -269,6 +349,8 @@ def _add_news_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ──────────────────────────── Feature dataframe ──────────────────────────────
+
 def build_features_dataframe(start_ts, end_ts) -> pd.DataFrame:
     qs = Ohlc1m.objects.filter(ts__gte=start_ts, ts__lte=end_ts).order_by('ts').values(
         'ts', 'open', 'high', 'low', 'close', 'volume'
@@ -281,32 +363,57 @@ def build_features_dataframe(start_ts, end_ts) -> pd.DataFrame:
     df['ts'] = pd.to_datetime(df['ts'], utc=True)
     df = df.set_index('ts').sort_index()
 
+    # ── Price returns ──
     df['r1'] = df['close'].pct_change(1)
     df['r5'] = df['close'].pct_change(5)
     df['r15'] = df['close'].pct_change(15)
     df['r60'] = df['close'].pct_change(60)
     df['r120'] = df['close'].pct_change(120)
 
+    # ── Return volatility ──
     df['vol_std_5'] = df['r1'].rolling(5).std()
     df['vol_std_15'] = df['r1'].rolling(15).std()
     df['vol_std_60'] = df['r1'].rolling(60).std()
     df['vol_std_120'] = df['r1'].rolling(120).std()
 
+    # ── Momentum ──
     df['mom_15'] = df['r1'].rolling(15).sum()
     df['mom_60'] = df['r1'].rolling(60).sum()
     df['mom_120'] = df['r1'].rolling(120).sum()
 
-    rng = (df['high'] - df['low']) / df['close'].replace(0, np.nan)
+    # ── Price range ratio ──
+    rng = (df['high'] - df['low']) / df['close'].replace(0.0, np.nan)
     df['range_mean_15'] = rng.rolling(15).mean()
     df['range_mean_60'] = rng.rolling(60).mean()
     df['range_mean_120'] = rng.rolling(120).mean()
 
-    df['vol_mean_15'] = df['volume'].rolling(15).mean()
-    df['vol_mean_60'] = df['volume'].rolling(60).mean()
-    df['vol_mean_120'] = df['volume'].rolling(120).mean()
+    # ── Volume z-scores (normalised, scale-invariant) ──
+    for w in (15, 60, 120):
+        vmean = df['volume'].rolling(w).mean()
+        vstd = df['volume'].rolling(w).std().replace(0.0, np.nan)
+        df[f'vol_z_{w}'] = ((df['volume'] - vmean) / vstd).fillna(0.0)
 
-    df['realized_vol_60m'] = df['r1'].rolling(60).std()
-    df['realized_vol_120m'] = df['r1'].rolling(120).std()
+    # ── Technical indicators ──
+    df['rsi_14'] = _rsi_series(df['close'])
+    df['atr_pct'] = _atr_pct_series(df)
+    df['macd_hist'] = _macd_hist_series(df['close'])
+    df['bb_pct_b'] = _bb_pct_b_series(df['close'])
+
+    # ── Intraday context (session-scoped, resets at IST 09:15 each day) ──
+    ist = ZoneInfo('Asia/Kolkata')
+    session_key = pd.Series(df.index.tz_convert(ist).date, index=df.index)
+
+    # VWAP = cumulative(typical_price * volume) / cumulative(volume) within session
+    vol_clipped = df['volume'].clip(lower=0.0)
+    tp = (df['high'] + df['low'] + df['close']) / 3.0
+    cum_tp_vol = (tp * vol_clipped).groupby(session_key).cumsum()
+    cum_vol = vol_clipped.groupby(session_key).cumsum()
+    vwap = cum_tp_vol / cum_vol.replace(0.0, np.nan)
+    df['vwap_dist'] = ((df['close'] - vwap) / df['close'].replace(0.0, np.nan)).fillna(0.0)
+
+    # Return from the first candle of the session to current close
+    session_open = df['open'].groupby(session_key).transform('first')
+    df['open_to_now_ret'] = ((df['close'] - session_open) / session_open.replace(0.0, np.nan)).fillna(0.0)
 
     df = _add_event_features(df)
     df = _add_news_features(df)
@@ -326,8 +433,7 @@ def build_labels(df: pd.DataFrame) -> pd.DataFrame:
     ist = ZoneInfo('Asia/Kolkata')
     df['local_date'] = df.index.tz_convert(ist).date
     last_close_by_date = df.groupby('local_date')['close'].last()
-    dates = list(last_close_by_date.index)
-    dates_sorted = sorted(dates)
+    dates_sorted = sorted(last_close_by_date.index)
     next_date_map = {dates_sorted[i]: dates_sorted[i + 1] for i in range(len(dates_sorted) - 1)}
     df['next_date'] = df['local_date'].map(next_date_map)
     df['next_close'] = df['next_date'].map(last_close_by_date)
@@ -337,14 +443,19 @@ def build_labels(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def train_models(df: pd.DataFrame) -> Dict[str, Optional[ModelBundle]]:
-    models = {}
     if df.empty:
         return {k: None for k in HORIZONS}
 
+    # Exclude synthetic gap-fill candles (volume == 0 from DataQualityEngine) from training.
+    # They stay in the DataFrame for rolling-window continuity but must not appear
+    # as training samples since they have artificial feature values.
+    df_real = df[df['volume'] > 0] if 'volume' in df.columns else df
+
+    models: Dict[str, Optional[ModelBundle]] = {}
     for label in HORIZONS:
-        y_col = f"y_{label}"
-        subset = df.dropna(subset=FEATURE_COLUMNS + [y_col])
-        if len(subset) < 150:
+        y_col = f'y_{label}'
+        subset = df_real.dropna(subset=FEATURE_COLUMNS + [y_col])
+        if len(subset) < 500:
             models[label] = None
             continue
 
@@ -359,12 +470,13 @@ def train_models(df: pd.DataFrame) -> Dict[str, Optional[ModelBundle]]:
     return models
 
 
-def _confidence_from_residual(residual_std: Optional[float]) -> Optional[float]:
+def _confidence_from_residual(residual_std: Optional[float], horizon_min: int = 60) -> Optional[float]:
+    """Convert out-of-sample residual std to a [0, 1] confidence score per horizon."""
     if residual_std is None:
         return None
-    baseline = 0.02
+    baseline = _CONFIDENCE_BASELINES.get(horizon_min, 0.01)
     score = 1.0 - min(1.0, residual_std / baseline)
-    return max(0.0, score)
+    return round(max(0.0, score), 4)
 
 
 def generate_latest_predictions() -> List[PricePrediction]:
@@ -391,14 +503,12 @@ def generate_latest_predictions() -> List[PricePrediction]:
                 predicted_return = 0.0
                 model_name = 'baseline_v1'
                 confidence = None
-                residual_std = None
             else:
                 predicted_return = model.predict(feature_vals)
                 model_name = model.model_name
-                confidence = _confidence_from_residual(model.residual_std)
-                residual_std = model.residual_std
+                confidence = _confidence_from_residual(model.residual_std, horizon)
 
-            predicted_price = latest_row['close'] * (1.0 + predicted_return)
+            predicted_price = float(latest_row['close']) * (1.0 + predicted_return)
             obj, _created = PricePrediction.objects.update_or_create(
                 ts=latest.ts,
                 horizon_min=horizon,
@@ -410,7 +520,6 @@ def generate_latest_predictions() -> List[PricePrediction]:
                     'confidence': confidence,
                 },
             )
-            obj._residual_std = residual_std
             predictions.append(obj)
 
     return predictions
@@ -438,33 +547,37 @@ def run_backtest_and_store(
         return None
 
     metrics = {label: {'mae': 0.0, 'dir_acc': 0.0, 'n': 0, 'folds': 0} for label in HORIZONS}
+    test_start_date = None
+    test_end_date = None
 
     for i in range(train_days, len(dates) - test_days + 1, test_days):
-        train_dates = set(dates[i - train_days : i])
-        test_dates = set(dates[i : i + test_days])
+        train_dates = set(dates[i - train_days: i])
+        test_dates = set(dates[i: i + test_days])
 
-        df_train = df[df['local_date'].isin(train_dates)]
-        df_test = df[df['local_date'].isin(test_dates)]
+        if test_start_date is None:
+            test_start_date = min(test_dates)
+        test_end_date = max(test_dates)
 
-        models = train_models(df_train)
+        # Exclude gap-fill candles from both train and test
+        df_train = df[df['local_date'].isin(train_dates) & (df['volume'] > 0)]
+        df_test = df[df['local_date'].isin(test_dates) & (df['volume'] > 0)]
+
+        fold_models = train_models(df_train)
         for label in HORIZONS:
-            y_col = f"y_{label}"
+            y_col = f'y_{label}'
             test_subset = df_test.dropna(subset=FEATURE_COLUMNS + [y_col])
             if test_subset.empty:
                 continue
-
-            model = models.get(label)
-            if model is None:
+            fold_model = fold_models.get(label)
+            if fold_model is None:
                 continue
 
             X = test_subset[FEATURE_COLUMNS].to_numpy(dtype=float)
             y_true = test_subset[y_col].to_numpy(dtype=float)
-            preds = model.predict_many(X)
-            mae = float(np.mean(np.abs(preds - y_true)))
-            dir_acc = float(np.mean(np.sign(preds) == np.sign(y_true)))
+            preds = fold_model.predict_many(X)
 
-            metrics[label]['mae'] += mae
-            metrics[label]['dir_acc'] += dir_acc
+            metrics[label]['mae'] += float(np.mean(np.abs(preds - y_true)))
+            metrics[label]['dir_acc'] += float(np.mean(np.sign(preds) == np.sign(y_true)))
             metrics[label]['n'] += len(test_subset)
             metrics[label]['folds'] += 1
 
@@ -474,16 +587,28 @@ def run_backtest_and_store(
             metrics_summary[label] = {'mae': None, 'directional_accuracy': None, 'samples': 0}
         else:
             metrics_summary[label] = {
-                'mae': stats['mae'] / stats['folds'],
-                'directional_accuracy': stats['dir_acc'] / stats['folds'],
+                'mae': round(stats['mae'] / stats['folds'], 8),
+                'directional_accuracy': round(stats['dir_acc'] / stats['folds'], 4),
                 'samples': stats['n'],
             }
 
+    # Resolve UTC datetimes for the test window boundaries
+    test_start_dt = None
+    test_end_dt = None
+    if test_start_date is not None:
+        rows = df[df['local_date'] == test_start_date]
+        if not rows.empty:
+            test_start_dt = rows.index.min().to_pydatetime()
+    if test_end_date is not None:
+        rows = df[df['local_date'] == test_end_date]
+        if not rows.empty:
+            test_end_dt = rows.index.max().to_pydatetime()
+
     run = PricePredictionRun.objects.create(
-        train_start=df.index.min(),
-        train_end=df.index.max(),
-        test_start=None,
-        test_end=None,
+        train_start=df.index.min().to_pydatetime(),
+        train_end=df.index.max().to_pydatetime(),
+        test_start=test_start_dt,
+        test_end=test_end_dt,
         status='ok',
         metrics_json=metrics_summary,
     )
