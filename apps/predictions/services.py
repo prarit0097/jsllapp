@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
@@ -7,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -14,6 +17,31 @@ from apps.events.models import Announcement, NewsItem
 from apps.market.models import Ohlc1m
 
 from .models import PricePrediction, PricePredictionRun
+
+logger = logging.getLogger('apps')
+
+# ─────────────────────── In-memory model cache ─────────────────────────────
+# Keeps trained models between prediction cycles so we only retrain once per
+# JSLL_MODEL_RETRAIN_INTERVAL_SEC (default 3600 = 1 hour) instead of every
+# 5-minute Celery beat tick.  Prediction itself is cheap (single row predict).
+
+_model_cache: Dict[str, Optional[ModelBundle]] = {}
+_cache_ts: float = 0.0  # epoch seconds when models were last trained
+
+
+def _models_are_fresh() -> bool:
+    """Return True if cached models are still within the retrain interval."""
+    if not _model_cache:
+        return False
+    interval = getattr(settings, 'JSLL_MODEL_RETRAIN_INTERVAL_SEC', 3600)
+    return (time.monotonic() - _cache_ts) < interval
+
+
+def invalidate_model_cache() -> None:
+    """Force next prediction cycle to retrain (useful for management commands)."""
+    global _model_cache, _cache_ts
+    _model_cache = {}
+    _cache_ts = 0.0
 
 
 FEATURE_COLUMNS = [
@@ -479,15 +507,38 @@ def _confidence_from_residual(residual_std: Optional[float], horizon_min: int = 
     return round(max(0.0, score), 4)
 
 
-def generate_latest_predictions() -> List[PricePrediction]:
+def generate_latest_predictions(force_retrain: bool = False) -> List[PricePrediction]:
+    """Generate predictions for the latest candle.
+
+    Model caching strategy:
+    - If cached models are fresh (< JSLL_MODEL_RETRAIN_INTERVAL_SEC old),
+      only fetch a lightweight ~500-minute feature window for prediction.
+    - If stale or force_retrain=True, do the full 180-day build + retrain,
+      then cache the models for subsequent calls.
+    """
+    global _model_cache, _cache_ts
+
     latest = Ohlc1m.objects.order_by('-ts').first()
     if not latest:
         return []
 
-    start_ts = latest.ts - timedelta(days=180)
-    df = build_features_dataframe(start_ts, latest.ts)
-    df = build_labels(df)
-    models = train_models(df)
+    need_retrain = force_retrain or not _models_are_fresh()
+
+    if need_retrain:
+        # Full 180-day window: build features + labels, train models
+        logger.info('Model cache miss — retraining (force=%s)', force_retrain)
+        start_ts = latest.ts - timedelta(days=180)
+        df = build_features_dataframe(start_ts, latest.ts)
+        df = build_labels(df)
+        models = train_models(df)
+        _model_cache = models
+        _cache_ts = time.monotonic()
+    else:
+        # Lightweight: only fetch recent ~500 minutes for feature computation
+        logger.info('Model cache hit — using cached models')
+        models = _model_cache
+        start_ts = latest.ts - timedelta(minutes=500)
+        df = build_features_dataframe(start_ts, latest.ts)
 
     if df.empty:
         return []

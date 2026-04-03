@@ -6,7 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.market.market_time import market_state
-from .services import generate_latest_predictions
+from .services import generate_latest_predictions, _models_are_fresh
 
 logger = logging.getLogger('apps')
 
@@ -20,9 +20,14 @@ def prediction_task():
         return {'skipped': True, 'reason': 'market_closed'}
 
     try:
+        cache_fresh = _models_are_fresh()
         preds = generate_latest_predictions()
-        logger.info('Prediction task completed: generated=%s', len(preds))
-        return {'status': 'ok', 'generated': len(preds)}
+        logger.info(
+            'Prediction task completed: generated=%s cache=%s',
+            len(preds),
+            'hit' if cache_fresh else 'miss',
+        )
+        return {'status': 'ok', 'generated': len(preds), 'cache': 'hit' if cache_fresh else 'miss'}
     except Exception:  # pragma: no cover
         logger.exception('Prediction task failed')
         return {'status': 'error'}
