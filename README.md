@@ -49,3 +49,7 @@ python manage.py test
 - Default settings module: `config.settings.dev`
 - Database uses `DATABASE_URL` (Postgres). If missing, falls back to SQLite for local development.
 - Redis settings for Celery are controlled by `REDIS_URL`.
+
+## Maintainer
+
+Developer portfolio: [Prarit Sidana](https://praritsidana.com/).
